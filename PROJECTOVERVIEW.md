@@ -43,7 +43,13 @@ The reactor also has pH, DO, and ammonium probes.  During the aeration phase, pH
 Fig 1. Gas System
 
 #### III. Project Structure
+- TBD
 
 #### IV. Use Cases
+1. Add data from gallery analyzer to the dataframe
+2. Add manually measured VSS value to the dataframe
+3. Visualize all data from last complete cycle interactively from a web interface
+4. Visualize most recent data interactively from a web interface
+5. Visualize all data from a specific part of the cycle interactively from a web interface
 
 
