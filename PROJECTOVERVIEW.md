@@ -5,7 +5,7 @@ Make another document that describes the data sets, their size, dimensionality, 
 ## Project Scope & Motivation
 ### Homework 6
 #### I. Software Motivation
-Winkler Lab, located in Ben Hall, is currently starting up sequencing batch bioreactors.  These reactors will collect timestamped data from labVIEW every 100 ms, and dump the data into a labVIEW TDMS file which can then saved as a CSV file.  In addition, daily samples will be taken from the reactor and ammonium, nitrite, and total organic nitrogen (TON) will be determined using a Thermo Scientific Gallery Analyzer Spectrophotometer[http://www.thermoscientific.com/en/product/gallery-automated-photometric-analyzer.html].  This machine outputs it's measurements in a CSV file with a time stamp.  Weekly samples will also be taken from the reactor in order to manually determine the concentration of Volatile Suspended Solids.  
+Winkler Lab, located in Ben Hall, is currently starting up sequencing batch bioreactors.  These reactors will collect timestamped data from labVIEW every 100 ms, and dump the data into a labVIEW TDMS file which can then saved as a CSV file.  In addition, daily samples will be taken from the reactor and ammonium, nitrite, and total organic nitrogen (TON) will be determined using a [Thermo Scientific Gallery Analyzer Spectrophotometer](http://www.thermoscientific.com/en/product/gallery-automated-photometric-analyzer.html).  This machine outputs it's measurements in a CSV file with a time stamp.  Weekly samples will also be taken from the reactor in order to manually determine the concentration of Volatile Suspended Solids.  
 
 Since data will be collected from the reactor in three different methods (1. Continuously from Labview, 2. Daily from the Gallery Analyzer, and 3. Manually), **it is our objective to design a piece of software that allows the user to:** 
 1. Combine these datasets and;
@@ -39,7 +39,7 @@ The reactor is a sequencing batch reactor.  That means that within once batch, i
 
 The reactor also has pH, DO, and ammonium probes.  During the aeration phase, pH and DO are being controlled.  If pH drops above or below a specified range, the acid or base pump is turned on to bring the pH back into range.  If the DO goes above a specified range, a mass flow controller connected to a N2 gas canister opens, and nitrogen gas is fed into the gas loop.  
 
-![Reactor Gas Loop Schematic](https://github.com/manewton/BioReactor-Data-Logging/blob/master/Gas System_GSR.png "Reactor Gas Loop Schematic")
+![Reactor Gas Loop Schematic](https://github.com/manewton/BioReactor-Data-Logging/blob/master/Gas%20system_GSR.png "Reactor Gas Loop Schematic")
 Fig 1. Gas System
 
 #### III. Project Structure
