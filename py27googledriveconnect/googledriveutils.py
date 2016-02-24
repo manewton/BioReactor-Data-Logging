@@ -4,7 +4,6 @@ For: Winkler Lab/CSE599 Winter Quarter 2016
 Purpose: Write and read from a google doc
 
 To Do:
-+Add file reading functions
 +Add appending data to existing files functions (write now everything just overwrites)
 +Add exporting from cRIO portion
 
@@ -107,7 +106,7 @@ def find_reactorfolder(reactorno):
         raise NoSuchReactor('There is no reactor with that number')
 
 
-def find_reactorfile(reactorno, filename):
+def find_reactorfileid(reactorno, filename):
     """
     Find a specific file withn a specified reactor's directory
     :param reactorno: int, the number of reactor in question
@@ -136,7 +135,7 @@ def write_to_reactordrive(reactorno, filename, text):
     :param filename: this is the name of the file we want to write to.
     :param text: this is the data we want to write
     """
-    file_to_write = find_reactorfileid(1, 'test.csv')  # Find our file we asked for
+    file_to_write = find_reactorfileid(reactorno, filename)  # Find our file we asked for
     if file_to_write is False:  # Create a new file if file doesn't exist
         tgt_folder_id = find_reactorfolder(reactorno)  # Find the id of directory we want to save to.
         file_to_write = drive.CreateFile({'title': filename, 'mimeType':'text/csv',
@@ -144,5 +143,22 @@ def write_to_reactordrive(reactorno, filename, text):
     file_to_write.SetContentString(text) # Put the content we want in the file
     file_to_write.Upload()  # Upload it
 
+
+def read_from_reactordrive(reactorno, filename, save_file_as):
+    """
+
+    :param reactorno: int, this is the reactor in question
+    :param filename: this is the name of the file we want to read
+    :param save_file_as: str, this is what you want to save the file as.
+    :return:
+    """
+    file_to_read = find_reactorfileid(reactorno, filename) # find file we asked for
+    if file_to_read is False:
+        raise NotMatching('The file specified: '+filename+' does not exist')
+    else:
+        file_to_read.GetContentFile(save_file_as)
 # Write a dummy file to test
-write_to_reactordrive(1, 'test.csv', 'testing some stuff!')
+# write_to_reactordrive(1, 'test.csv', 'testing some stuff!')
+
+# Read to a dummy file to test
+read_from_reactordrive(1, 'test.csv', 'tempdata.csv')
