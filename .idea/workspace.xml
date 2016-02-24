@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="24ff29af-21fa-4037-b32a-d064a20b7bc2" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/py27googledriveconnect/googledriveutils.py" afterPath="$PROJECT_DIR$/py27googledriveconnect/googledriveutils.py" />
-    </list>
+    <list default="true" id="24ff29af-21fa-4037-b32a-d064a20b7bc2" name="Default" comment="" />
     <ignored path="BioReactor-Data-Logging.iws" />
     <ignored path=".idea/workspace.xml" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -36,8 +34,8 @@
       <file leaf-file-name="googledriveutils.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/py27googledriveconnect/googledriveutils.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.4755245">
-              <caret line="153" column="7" selection-start-line="153" selection-start-column="7" selection-end-line="153" selection-end-column="7" />
+            <state vertical-scroll-proportion="0.8251748">
+              <caret line="163" column="37" selection-start-line="163" selection-start-column="37" selection-end-line="163" selection-end-column="37" />
               <folding />
             </state>
           </provider>
@@ -64,8 +62,8 @@
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="307" />
-    <option name="y" value="23" />
+    <option name="x" value="25" />
+    <option name="y" value="186" />
     <option name="width" value="980" />
     <option name="height" value="797" />
   </component>
@@ -352,7 +350,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="307" y="23" width="980" height="797" extended-state="0" />
+    <frame x="25" y="186" width="980" height="797" extended-state="0" />
     <editor active="false" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20542231" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -415,8 +413,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/py27googledriveconnect/googledriveutils.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.4755245">
-          <caret line="153" column="7" selection-start-line="153" selection-start-column="7" selection-end-line="153" selection-end-column="7" />
+        <state vertical-scroll-proportion="0.8251748">
+          <caret line="163" column="37" selection-start-line="163" selection-start-column="37" selection-end-line="163" selection-end-column="37" />
           <folding />
         </state>
       </provider>
