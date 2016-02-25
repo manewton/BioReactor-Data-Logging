@@ -3,10 +3,6 @@ Written By: Kathryn Cogert
 For: Winkler Lab/CSE599 Winter Quarter 2016
 Purpose: Write and read from a google doc
 
-To Do:
-+Add appending data to existing files functions (write now everything just overwrites)
-+Add exporting from cRIO portion
-
 
 Note: Had to copy of local copy of PyDrive because it has some issues that make it incompatible with the latest
 version of the googleAPI.  This copy is in it's own directory and
@@ -14,8 +10,9 @@ Specifically, it forces a / at the end of the redirect URI.  Google does not all
 so in order to use the package, I had to copy it and remove that / from the end of the procedurally generated URL.
 """
 
-from reactorpydrive.auth import GoogleAuth
-from reactorpydrive.drive import GoogleDrive
+import os
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 
 
@@ -146,7 +143,7 @@ def write_to_reactordrive(reactorno, filename, text):
 
 def read_from_reactordrive(reactorno, filename, save_file_as):
     """
-
+    Reads a specified file from a specified reactors directory and saves it locally.
     :param reactorno: int, this is the reactor in question
     :param filename: this is the name of the file we want to read
     :param save_file_as: str, this is what you want to save the file as.
@@ -157,8 +154,42 @@ def read_from_reactordrive(reactorno, filename, save_file_as):
         raise NotMatching('The file specified: '+filename+' does not exist')
     else:
         file_to_read.GetContentFile(save_file_as)
+
+
+def remove_file(filename):
+    """
+    Determines if a file exists before trying to delete it
+    :param filename: str, name of file to delete
+    """
+    if os.path.exists(filename):
+        os.remove(filename)
+    else:
+        return False
+    return
+
 # Write a dummy file to test
 # write_to_reactordrive(1, 'test.csv', 'testing some stuff!')
 
-# Read to a dummy file to test
-read_from_reactordrive(1, 'test.csv', 'tempdata.csv')
+# Remove a file
+remove_file('tempdata.csv')
+
+"""
+import csv
+import pandas as pd
+from googledriveutils import read_from_reactordrive, write_to_reactordrive, remove_file
+
+
+def add_new_data(reactorno, file_to_read, file_to_write):
+    read_from_reactordrive(reactorno, file_to_read, 'tempdata.csv')
+
+
+def get_local_data(x):
+
+    Get the local data from the cRIO and save in a temp file.
+    :param x: int, dummyvar
+    :return y: str, returns something to write.
+
+
+    return
+
+"""
