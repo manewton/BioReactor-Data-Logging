@@ -10,7 +10,7 @@ drive = GoogleDrive(gauth)
 """
 Function GetGDriveContent
 Input:
-    drive - GoogleDrive to be accessed
+    drive - GoogleDrive to be accessed (GoogleDrive object)
 Output:
     list_of_content - list of files and folders in the GoogleDrive root (list)
 """
@@ -28,7 +28,7 @@ def GetGDriveContent(drive):
 Function CreateFileOnGDrive creates a file with name 'filename'
 in GDrive root directory
 Input:
-    drive - GoogleDrive to be accessed
+    drive - GoogleDrive to be accessed (GoogleDrive object)
     filename - name of the file to be created (string)
     content - content to be inserted in the file (string)
 Output:
@@ -37,13 +37,20 @@ Output:
 def CreateFileInGDriveRoot(drive,filename,content):
     GDriveContent = GetGDriveContent(drive)
     if filename in GDriveContent:
-        print 'A file with name', filename, 'arleady exists in GDrive'
+        print 'A file with name', filename, 'already exists in GDrive'
     else:
         file1 = drive.CreateFile({'title': filename})
         file1.SetContentString(content)
         file1.Upload()
 
 
+"""
+Function GetFolderID gets id of the folder with name foldername if
+such folder exist in GDrive.
+Input:
+    drive - GoogleDrive to be accessed (GoogleDrive object)
+    foldername - name of the folder whose id is to be found
+"""
 def GetFolderID(drive,foldername):
     file_list = drive.ListFile({'q':
         "'root' in parents and trashed=false"}).GetList()
@@ -56,7 +63,7 @@ def GetFolderID(drive,foldername):
 def CreateFolderInGDriveRoot(drive,foldername):
     GDriveContent = GetGDriveContent(drive)
     if foldername in GDriveContent:
-        print 'A folder with name', foldername, 'arleady exists in GDrive'
+        print 'A folder with name', foldername, 'already exists in GDrive'
     else:
         file1 = drive.CreateFile({'title': foldername,
             'mimeType' : 'application/vnd.google-apps.folder'})
