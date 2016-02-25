@@ -1,8 +1,18 @@
+"""
+Written By: Michael Newton
+For: Winkler Lab/CSE599 Winter Quarter 2016
+Purpose: Uses Bokeh to plot sample data from Bioreactor while incorporating Widgets
+
+To Do:
++ Properly impart functionality to check box button group
++ Increase generality of code to allow for any data frame
+"""
+
 import numpy as np
-from bokeh.charts import *
-from bokeh.io import output_notebook, show, output_file, vform
-from bokeh.models import ColumnDataSource, CustomJS
 import pandas as pd
+from bokeh.charts import *
+from bokeh.io import show, output_file, vform
+from bokeh.models import ColumnDataSource
 from bokeh.models.widgets import CheckboxButtonGroup
 
 # Accept/Setup Dataframe to be Plotted
@@ -14,7 +24,7 @@ source = ColumnDataSource(data=sampleSI)
 
 # Plot a Specified Column in Dataframe
 lineplot = Line(sampleSI['DO'], xlabel='Date', ylabel='DO', legend="top_left")
-checkbox_button_group = CheckboxButtonGroup(labels=["DO", "NH4", "pH"], active=[0, 1])
+checkbox_button_group = CheckboxButtonGroup(labels=["DO"], active=[0, 1])
 
 # This callback is apparently only usable for a slider
 # callback = CustomJS(args=dict(source=source), code="""
@@ -28,6 +38,5 @@ checkbox_button_group = CheckboxButtonGroup(labels=["DO", "NH4", "pH"], active=[
 #         source.trigger('change');
 # """)
 
-# output_notebook()
 output_file("doplot.html", title="DO Line Plot")
 show(vform(checkbox_button_group, lineplot))
