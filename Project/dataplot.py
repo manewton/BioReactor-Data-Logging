@@ -11,9 +11,10 @@ To Do:
 import numpy as np
 import pandas as pd
 from bokeh.charts import *
-from bokeh.io import show, output_file, vform
-from bokeh.models import ColumnDataSource
-from bokeh.models.widgets import CheckboxButtonGroup
+from bokeh.plotting import Figure
+from bokeh.io import show, output_file, vform, curdoc
+from bokeh.models import ColumnDataSource, HoverTool, HBox, VBoxForm
+from bokeh.models.widgets import CheckboxButtonGroup, Select, TextInput
 
 # Accept/Setup Dataframe to be Plotted
 sample_data_live = 'sampledatalive.csv'
@@ -21,6 +22,20 @@ sample = pd.read_csv(sample_data_live, parse_dates = [0])
 sampleSI = sample.set_index('Date')
 
 source = ColumnDataSource(data=sampleSI)
+
+
+
+# Create Input Controls
+datatype = Select(title="Data of Interest", value="All")
+def make_plot(source, title):
+    p = Figure(x_axis_type="datetime", plot_height=600, plot_width=800, tools="", toolbar_location=None)
+    p.title = title
+    p.line(x="x", y="y", source=source, color="color", line_alpha="alpha")
+
+    return p
+
+
+
 
 # Plot a Specified Column in Dataframe
 lineplot = Line(sampleSI['DO'], xlabel='Date', ylabel='DO', legend="top_left")
