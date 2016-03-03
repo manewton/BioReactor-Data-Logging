@@ -4,7 +4,6 @@ from bokeh.io import curdoc, show, vform, output_file
 from bokeh.models import ColumnDataSource, VBox, HBox, Select, CheckboxButtonGroup
 from bokeh.plotting import Figure
 
-python bokeh serve
 
 # Accept/Setup Dataframe to be Plotted
 sample_data_live = 'sampledatalive.csv'
