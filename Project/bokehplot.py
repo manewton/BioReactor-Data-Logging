@@ -4,6 +4,8 @@ from bokeh.io import curdoc, show, vform, output_file
 from bokeh.models import ColumnDataSource, VBox, HBox, Select, CheckboxButtonGroup
 from bokeh.plotting import Figure
 
+python bokeh serve
+
 # Accept/Setup Dataframe to be Plotted
 sample_data_live = 'sampledatalive.csv'
 sample = pd.read_csv(sample_data_live, parse_dates = [0])
@@ -13,7 +15,7 @@ source = ColumnDataSource(data=sampleSI)  # requires all columns have same lengt
 
 
 def make_plot(sources, title):
-    plot = Figure(x_axis_type="datetime", plot_width=800, tools="", toolbar_location=None)
+    plot = Figure(x_axis_type="datetime", plot_width=800)
     plot.title = title
     plot.line(x="Date", y=datas[data_to_plot]['name'], source=sources, color="color", line_alpha="alpha")
 
@@ -25,7 +27,7 @@ def update_plot(attrname, old, new):
     plot.title = datas[data_to_plot]['title']
 
     # src =
-    source.data(data_to_plot)
+    source.data.update(data_to_plot)
 
 
 
