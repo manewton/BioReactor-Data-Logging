@@ -12,22 +12,20 @@ sampleSI = sample.set_index('Date')
 
 source = ColumnDataSource(data=sampleSI)  # requires all columns have same length
 
+plot = Figure(x_axis_type="datetime", plot_width=800)
 
-def make_plot(sources, title):
-    plot = Figure(x_axis_type="datetime", plot_width=800)
+def make_plot(title, plot):
     plot.title = title
-    plot.line(x="Date", y=datas[data_to_plot]['name'], source=sources, color="color", line_alpha="alpha")
-
+    plot.line(x=sampleSI.index, y=sampleSI[title], color="color", line_alpha="alpha")
     return plot
 
 
 def update_plot(attrname, old, new):
     data_to_plot = data_select.value
-    plot.title = datas[data_to_plot]['title']
-
+    new_name=datas[data_to_plot]['name']
+    new_df=pd.DataFrame(sampleSI[new_name])
     # src =
-    source.data.update(data_to_plot)
-
+    make_plot(new_name, plot)
 
 
 data_to_plot = 'DO'
@@ -51,8 +49,7 @@ datas = {
 }
 
 data_select = Select(value=data_to_plot, title='Data', options=sorted(datas.keys()))
-plot = make_plot(source, datas[data_to_plot]['title'])
-
+plot = make_plot(datas[data_to_plot]['name'], plot)
 data_select.on_change('value', update_plot)
 
 controls = VBox(data_select)
