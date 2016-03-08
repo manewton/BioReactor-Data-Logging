@@ -1,15 +1,13 @@
-import shutil
+
 import os
 from googledriveutils import read_from_reactordrive
 from googledriveutils import remove_file
 
-filename = 'R1data.csv'
-read_from_reactordrive(1, 'R1data', filename)
-curdir = os.path.join(__file__, os.pardir)
-pardir = os.path.join(curdir, os.pardir)
-move_to = os.path.abspath(pardir)+'/SampleData'
-file_to_move = os.path.abspath(curdir)+'/'+filename
-if os.path.isfile(move_to+'/'+filename):
-    remove_file(move_to+'/'+filename)
-
-shutil.move(file_to_move, move_to)
+def download_latest(reactorno=1, filename='R1data.csv',):
+    curdir = os.getcwd()
+    pardir = os.path.abspath(os.path.join(curdir, os.pardir))
+    save_to = pardir+'/SampleData/'+filename
+    if os.path.isfile(save_to):
+        remove_file(save_to)
+    read_from_reactordrive(reactorno, filename, save_to)
+    return
