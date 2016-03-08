@@ -3,11 +3,20 @@ import pandas as pd
 from bokeh.io import curdoc, show, vform, output_file
 from bokeh.models import ColumnDataSource, VBox, HBox, Select, CheckboxButtonGroup
 from bokeh.plotting import Figure
+import os
+import sys
+curdir = os.path.join(__file__, os.pardir)
+pardir = os.path.join(curdir, os.pardir)
+py27dir = os.path.abspath(pardir)+'/py27googledriveconnect'
+sys.path.insert(0, py27dir)
+from downloader import download_latest
 
+datafile = os.path.abspath(pardir)+'/SampleData/R1data.csv'
+download_latest(1, 'R1data.csv')
 
 # Accept/Setup Dataframe to be Plotted
-sample_data_live = 'sampledatalive.csv'
-sample = pd.read_csv(sample_data_live, parse_dates = [0])
+sample_data_live = datafile
+sample = pd.read_csv(sample_data_live, parse_dates=[0])
 sampleSI = sample.set_index('Date')
 
 source = ColumnDataSource(data=sampleSI)  # requires all columns have same length
@@ -31,7 +40,7 @@ def update_plot(attrname, old, new):
 data_to_plot = 'DO'
 datas = {
     'DO': {
-        'name': 'DO',
+        'name': 'DO mg/L',
         'title': 'Dissolved Oxygen'
     },
     'pH': {
