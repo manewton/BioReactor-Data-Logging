@@ -193,27 +193,35 @@ def write_to_reactordrive(reactorno, filename):
     :param filename: this is the name of the file we want to write to.
     """
     # Find our file we asked for
-    to_write = get_newdata(reactorno)
-    file_to_write = find_reactorfileid(reactorno, filename)
-    if file_to_write is False:  # Create a new file if file doesn't exist
-        # Find the id of directory we want to save to.
-        tgt_folder_id = find_reactorfolder(reactorno)
-        # Make that file
-        file_to_write = drive.CreateFile({'title': filename,
-                                          'mimeType': 'text/csv', "parents":
-                                              [{"kind": "drive#fileLink", "id":
-                                                  tgt_folder_id}]})
-        # Put the content we want in the file
-        to_write.to_csv('temp.csv')
-    else:
-        file_to_write.GetContentFile('temp.csv')
-        old_data = pd.read_csv('temp.csv')
-        old_data = old_data.set_index('Date')
-        new_data = old_data.append(to_write)
-        new_data.to_csv('temp.csv')
-    file_to_write.SetContentFile('temp.csv')
-    remove_file('temp.csv')
-    file_to_write.Upload()  # Upload it
+    try:
+        to_write = get_newdata(reactorno)
+        file_to_write = find_reactorfileid(reactorno, filename)
+        if file_to_write is False:  # Create a new file if file doesn't exist
+            # Find the id of directory we want to save to.
+            tgt_folder_id = find_reactorfolder(reactorno)
+            # Make that file
+            file_to_write = drive.CreateFile({'title': filename,
+                                              'mimeType': 'text/csv', "parents":
+                                                  [{"kind": "drive#fileLink", "id":
+                                                      tgt_folder_id}]})
+            # Put the content we want in the file
+            to_write.to_csv('temp.csv')
+        else:
+            file_to_write.GetContentFile('temp.csv')
+            old_data = pd.read_csv('temp.csv')
+            old_data = old_data.set_index('Date')
+            new_data = old_data.append(to_write)
+            new_data.to_csv('temp.csv')
+        file_to_write.SetContentFile('temp.csv')
+        remove_file('temp.csv')
+
+        file_to_write.Upload()  # Upload it
+        print 'Collecting Data...'
+    except Exception, e:
+        ts = time.time()
+        ts_date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        print str(e)
+        print 'Due to error, skipped collection at ' + str(ts_date)
     return
 
 
