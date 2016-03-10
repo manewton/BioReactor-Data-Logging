@@ -9,9 +9,13 @@ to run python2.7 in a virtual environment for this to work.  UGH!
 """
 
 import os
+import urllib2
+import datetime
+import time
+from xml.etree import ElementTree
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
-
+import pandas as pd
 
 """
 Define Custom Errors
@@ -46,6 +50,46 @@ This will open a web browser and prompt for user permission.
 gauth = GoogleAuth()
 gauth.LocalWebserverAuth()  # Creates local webserver and authenticates
 drive = GoogleDrive(gauth)  # Create authenticated GoogleDrive instance
+
+
+def remove_file(filename):
+    """
+    Determines if a file exists before trying to delete it
+    :param filename: str, name of file to delete
+    :return: boolean if the filename doesn't exist
+    """
+    if os.path.exists(filename):
+        os.remove(filename)
+    else:
+        return False
+    return
+
+
+def get_newdata(reactorno):
+    """
+    Uses HTTP method to query cRIO server for reactor status
+    :param reactorno: int, this is the reactor in question
+    :return: list, this is a list of requested values
+    """
+    # Builds the cRIO web server URL where we will make the GET request
+    url = 'http://128.208.236.156:8080/cRIOtoWeb/DataTransfer?reactorno=' + \
+          str(reactorno)
+    # Makes the GET request
+    result = urllib2.urlopen(url).read()
+    # Result is a labview "cluster" type variable, (like a struct in java)
+    # But it is saved here as an XML string and converted to a parseable form
+    root = ElementTree.fromstring(result)
+    column_names = [Name.text for Name in root[0][1].findall('Name')]
+    column_names.insert(0, 'Date')
+    # Returns data and data cleans
+    data = [Value.text for Value in root[0][1].findall('Value')]
+    ts = time.time()
+    ts_date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+    data.insert(0, ts_date)
+    df = pd.DataFrame(columns=column_names)
+    df.loc[0] = data
+    df = df.set_index('Date')
+    return df
 
 
 def get_file_list(directory):
@@ -88,8 +132,9 @@ def find_folderid(folder_name, directory):
                 # Look for folder that matches name, and save the folder ID
                 fid = afile['id']
                 return fid
-            else:  # If nothing matched, the name was wrong
-                raise NotMatching('No folder of that name in specified dir')
+    # If nothing matched, the name was wrong
+    if 'fid' in locals() or 'fid' in globals():
+        raise NotMatching('No folder of that name in specified dir')
     # if none of files in the list were folders, then say so.
     if no_folders_here:
         raise NoFolders('There are no folders in specified directory')
@@ -141,25 +186,43 @@ def find_reactorfileid(reactorno, filename):
         return False
 
 
-def write_to_reactordrive(reactorno, filename, text):
+def write_to_reactordrive(reactorno, filename):
     """
     Writes some specified info to a specified file for a specified reactor
     :param reactorno: int, this is the reactor in question
     :param filename: this is the name of the file we want to write to.
-    :param text: this is the data we want to write
     """
     # Find our file we asked for
-    file_to_write = find_reactorfileid(reactorno, filename)
-    if file_to_write is False:  # Create a new file if file doesn't exist
-        # Find the id of directory we want to save to.
-        tgt_folder_id = find_reactorfolder(reactorno)
-        # Make that file
-        file_to_write = drive.CreateFile({'title': filename,
-                                          'mimeType': 'text/csv', "parents":
-                                              [{"kind": "drive#fileLink", "id":
-                                                  tgt_folder_id}]})
-    file_to_write.SetContentString(text)  # Put the content we want in the file
-    file_to_write.Upload()  # Upload it
+    try:
+        to_write = get_newdata(reactorno)
+        file_to_write = find_reactorfileid(reactorno, filename)
+        if file_to_write is False:  # Create a new file if file doesn't exist
+            # Find the id of directory we want to save to.
+            tgt_folder_id = find_reactorfolder(reactorno)
+            # Make that file
+            file_to_write = drive.CreateFile({'title': filename,
+                                              'mimeType': 'text/csv', "parents":
+                                                  [{"kind": "drive#fileLink", "id":
+                                                      tgt_folder_id}]})
+            # Put the content we want in the file
+            to_write.to_csv('temp.csv')
+        else:
+            file_to_write.GetContentFile('temp.csv')
+            old_data = pd.read_csv('temp.csv')
+            old_data = old_data.set_index('Date')
+            new_data = old_data.append(to_write)
+            new_data.to_csv('temp.csv')
+        file_to_write.SetContentFile('temp.csv')
+        remove_file('temp.csv')
+
+        file_to_write.Upload()  # Upload it
+        print 'Collecting Data...'
+    except Exception, e:
+        ts = time.time()
+        ts_date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        print str(e)
+        print 'Due to error, skipped collection at ' + str(ts_date)
+    return
 
 
 def read_from_reactordrive(reactorno, filename, save_file_as):
@@ -178,21 +241,3 @@ def read_from_reactordrive(reactorno, filename, save_file_as):
     else:
         file_to_read.GetContentFile(save_file_as)
 
-
-def remove_file(filename):
-    """
-    Determines if a file exists before trying to delete it
-    :param filename: str, name of file to delete
-    :return: boolean if the filename doesn't exist
-    """
-    if os.path.exists(filename):
-        os.remove(filename)
-    else:
-        return False
-    return
-
-# Write a dummy file to test
-# write_to_reactordrive(1, 'test.csv', 'testing some stuff!')
-
-# Remove a file
-remove_file('tempdata.csv')
