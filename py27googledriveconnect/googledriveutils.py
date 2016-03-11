@@ -225,6 +225,34 @@ def write_to_reactordrive(reactorno, filename):
         print 'Due to error, skipped collection at ' + str(ts_date)
     return
 
+def writeelse_to_reactordrive(reactorno, filename, InputFile):
+    """
+    Writes some specified info to a specified file for a specified reactor
+    :param reactorno: int, this is the reactor in question
+    :param filename: this is the name of the file we want to write to.
+    """
+    # Find our file we asked for
+    try:
+        file_to_write = find_reactorfileid(reactorno, filename)
+        if file_to_write is False:  # Create a new file if file doesn't exist
+            # Find the id of directory we want to save to.
+            tgt_folder_id = find_reactorfolder(reactorno)
+            # Make that file
+            file_to_write = drive.CreateFile({'title': filename,
+                                              'mimeType': 'text/csv', "parents":
+                                                  [{"kind": "drive#fileLink", "id":
+                                                      tgt_folder_id}]})
+            # Put the content we want in the file
+        else:
+        file_to_write.SetContentFile(InputFile)
+        file_to_write.Upload()  # Upload it
+        print 'Revising Data'
+    except Exception, e:
+        ts = time.time()
+        ts_date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        print str(e)
+        print 'Due to error, this was not performed ' + str(ts_date)
+    return
 
 def read_from_reactordrive(reactorno, filename, save_file_as):
     """
