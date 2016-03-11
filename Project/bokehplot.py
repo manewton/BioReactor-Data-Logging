@@ -11,8 +11,8 @@ py27dir = os.path.abspath(pardir)+'/py27googledriveconnect'
 sys.path.insert(0, py27dir)
 from downloader import download_latest
 
-datafile = os.path.abspath(pardir)+'/SampleData/R1data.csv'
-download_latest(1, 'R1data.csv')
+datafile = os.path.abspath(pardir)+'/DataManagement/R1data'
+download_latest(1, 'R1data')
 
 # Accept/Setup Dataframe to be Plotted
 sample_data_live = datafile
