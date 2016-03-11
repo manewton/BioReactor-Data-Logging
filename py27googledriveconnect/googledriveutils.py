@@ -109,6 +109,7 @@ def get_file_list(directory):
         raise InvalidDir('Specified directory is invalid')
 
 
+
 def find_folderid(folder_name, directory):
     """
     Returns the id of a folder of a given name in a given directory
