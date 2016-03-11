@@ -41,9 +41,19 @@ def make_plot(title1, plot1, title2, plot2, title3, plot3, title4, plot4, title5
     plot3.title = title3
     plot4.title = title4
     plot5.title = title5
+    plot1.yaxis.axis_label = datas['DO']['title']
+    plot1.yaxis.axis_label_text_font_style = "italic"
+    plot2.yaxis.axis_label = datas['Ammonium']['title']
+    plot2.yaxis.axis_label_text_font_style = "italic"
+    plot3.yaxis.axis_label = datas['pH']['name']
+    plot3.yaxis.axis_label_text_font_style = "italic"
+    plot4.yaxis.axis_label = datas['N2 Mass Flow Controller']['title']
+    plot4.yaxis.axis_label_text_font_style = "italic"
+    plot5.yaxis.axis_label = datas['Air Mass Flow Controller']['title']
+    plot5.yaxis.axis_label_text_font_style = "italic"
     plot1.line(x=sampleSI.index, y=sampleSI[title1], color="navy")
     plot2.line(x=sampleSI.index, y=sampleSI[title2], color="firebrick")
-    plot3.line(x=sampleSI.index, y=sampleSI[title3], color="#28D0B4")
+    plot3.line(x=sampleSI.index, y=sampleSI[title3], color="#28D0B4", line_width=2)
     plot4.line(x=sampleSI.index, y=sampleSI[title4], color="orange")
     plot5.line(x=sampleSI.index, y=sampleSI[title5], color="black")
     p = gridplot([[plot1, plot2], [plot3, plot4], [plot5, None]])
@@ -62,7 +72,7 @@ data_to_plot = 'DO'
 datas = {
     'DO': {
         'name': 'DO mg/L',
-        'title': 'Dissolved Oxygen'
+        'title': 'Dissolved Oxygen (mg/L)'
     },
     'pH': {
         'name': 'pH',
@@ -70,15 +80,15 @@ datas = {
     },
     'Ammonium': {
         'name': 'Ammonium',
-        'title': 'NH4 Conc.'
+        'title': 'NH4 Conc. (mg/L)'
     },
     'N2 Mass Flow Controller': {
         'name': 'N2 Mass Flow Controller',
-        'title': 'N2 Flow Rate'
+        'title': 'N2 Flow Rate (SCCM)'
     },
     'Air Mass Flow Controller': {
         'name': 'Air Mass Flow Controller',
-        'title': 'Air Flow Rate'
+        'title': 'Air Flow Rate (SCCM)'
     }
 }
 
