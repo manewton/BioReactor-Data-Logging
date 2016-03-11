@@ -1,15 +1,18 @@
 import os
 import sys
-import time
 
 import pandas as pd
+from bokeh.client import push_session
 from bokeh.io import output_file
-from bokeh.models import ColumnDataSource, HBox
+from bokeh.models import HBox
 from bokeh.plotting import Figure, output_server, curdoc, show, gridplot
+
+from googledriveutils import find_folderid
 
 # Prepare output to server
 output_server("BioReactor_Data_Logging")
 
+print find_folderid('Winkler Lab', 'root')
 # Retrieves latest updated data file from google drive
 curdir = os.path.join(__file__, os.pardir)
 pardir = os.path.join(curdir, os.pardir)
@@ -17,15 +20,13 @@ py27dir = os.path.abspath(pardir) + '/py27googledriveconnect'
 sys.path.insert(0, py27dir)
 from downloader import download_latest
 
-datafile = os.path.abspath(pardir)+'/Data_Management/R1data'
+datafile = os.path.abspath(pardir) + '/Data_Management/R1data'
 download_latest(1, 'R1data')
 
 # Accept/Setup Dataframe to be Plotted
 sample_data_live = datafile
 sample = pd.read_csv(sample_data_live, parse_dates=[0])
 sampleSI = sample.set_index('Date')
-
-source = ColumnDataSource(data=sampleSI)  # requires all columns have same length
 
 # Initialize plot figures
 plot1 = Figure(x_axis_type="datetime", plot_width=800)
@@ -41,16 +42,6 @@ def make_plot(title1, plot1, title2, plot2, title3, plot3, title4, plot4, title5
     plot3.title = title3
     plot4.title = title4
     plot5.title = title5
-    plot1.yaxis.axis_label = datas['DO']['title']
-    plot1.yaxis.axis_label_text_font_style = "italic"
-    plot2.yaxis.axis_label = datas['Ammonium']['title']
-    plot2.yaxis.axis_label_text_font_style = "italic"
-    plot3.yaxis.axis_label = datas['pH']['name']
-    plot3.yaxis.axis_label_text_font_style = "italic"
-    plot4.yaxis.axis_label = datas['N2 Mass Flow Controller']['title']
-    plot4.yaxis.axis_label_text_font_style = "italic"
-    plot5.yaxis.axis_label = datas['Air Mass Flow Controller']['title']
-    plot5.yaxis.axis_label_text_font_style = "italic"
     plot1.line(x=sampleSI.index, y=sampleSI[title1], color="navy")
     plot2.line(x=sampleSI.index, y=sampleSI[title2], color="firebrick")
     plot3.line(x=sampleSI.index, y=sampleSI[title3], color="#28D0B4", line_width=2)
@@ -60,19 +51,11 @@ def make_plot(title1, plot1, title2, plot2, title3, plot3, title4, plot4, title5
     return p
 
 
-# def update_plot(attrname, old, new):
-#     data_to_plot = data_select.value
-#     new_name = datas[data_to_plot]['name']
-#     new_df = pd.DataFrame(sampleSI[new_name])
-#     # src =
-#     make_plot(new_name, plot)
-
-
 data_to_plot = 'DO'
 datas = {
     'DO': {
         'name': 'DO mg/L',
-        'title': 'Dissolved Oxygen (mg/L)'
+        'title': 'Dissolved Oxygen'
     },
     'pH': {
         'name': 'pH',
@@ -80,33 +63,56 @@ datas = {
     },
     'Ammonium': {
         'name': 'Ammonium',
-        'title': 'NH4 Conc. (mg/L)'
+        'title': 'NH4 Conc.'
     },
     'N2 Mass Flow Controller': {
         'name': 'N2 Mass Flow Controller',
-        'title': 'N2 Flow Rate (SCCM)'
+        'title': 'N2 Flow Rate'
     },
     'Air Mass Flow Controller': {
         'name': 'Air Mass Flow Controller',
-        'title': 'Air Flow Rate (SCCM)'
+        'title': 'Air Flow Rate'
     }
 }
 
 # data_select = Select(value=data_to_plot, title='Data', options=sorted(datas.keys()))
 plot = make_plot(datas['DO']['name'], plot1, datas['Ammonium']['name'], plot2, datas['pH']['name'], plot3,
                  datas['N2 Mass Flow Controller']['name'], plot4, datas['Air Mass Flow Controller']['name'], plot5)
-# data_select.on_change('value', update_plot)
-#
-# controls = VBox(data_select)
 
 curdoc().add_root(HBox(plot))
-output_file("bokehplot.html", title="Bokeh Line Plot")
-show(HBox(plot))
+# output_file("bokehplot.html", title="Bokeh Line Plot")
+# show(HBox(plot))
 
-# Set up streaming for data plots.
+session = push_session(curdoc())
+
+
+def update():
+    datafile = os.path.abspath(pardir) + '/Data_Management/R1data'
+    download_latest(1, 'R1data')
+    sample_data_live = datafile
+    sample = pd.read_csv(sample_data_live, parse_dates=[0])
+    sampleSI = sample.set_index('Date')
+    # source = ColumnDataSource(data=sampleSI)
+    plot = make_plot(datas['DO']['name'], plot1, datas['Ammonium']['name'], plot2, datas['pH']['name'], plot3,
+                     datas['N2 Mass Flow Controller']['name'], plot4, datas['Air Mass Flow Controller']['name'], plot5)
+
+
+curdoc().add_periodic_callback(update(), 500)
+session.show()
+
+session.loop_until_closed()
+
+# # Set up streaming for data plots.
 # while True:
 #     # Somehow need to update the data of the source object "source"
-#
+#     datafile = os.path.abspath(pardir) + '/R1data.csv'
+#     download_latest(1, 'R1data.csv')
+#     sample_data_live = datafile
+#     sample = pd.read_csv(sample_data_live, parse_dates=[0])
+#     sampleSI = sample.set_index('Date')
+#     source = ColumnDataSource(data=sampleSI)
+#     plot = make_plot(datas['DO']['name'], plot1, datas['Ammonium']['name'], plot2, datas['pH']['name'], plot3,
+#                  datas['N2 Mass Flow Controller']['name'], plot4, datas['Air Mass Flow Controller']['name'], plot5)
 #     # Store the updated source on the server
 #     curdoc().store_objects(source)
 #     time.sleep(0.5)
