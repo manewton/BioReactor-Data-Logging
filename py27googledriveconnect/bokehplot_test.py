@@ -1,8 +1,7 @@
 import os
 import sys
-import time
-
 import pandas as pd
+from googledriveutils import find_folderid
 from bokeh.io import output_file
 from bokeh.models import ColumnDataSource, HBox
 from bokeh.plotting import Figure, output_server, curdoc, show, gridplot
@@ -10,18 +9,19 @@ from bokeh.plotting import Figure, output_server, curdoc, show, gridplot
 # Prepare output to server
 output_server("BioReactor_Data_Logging")
 
+print find_folderid('Winkler Lab', 'root')
 # Retrieves latest updated data file from google drive
 curdir = os.path.join(__file__, os.pardir)
 pardir = os.path.join(curdir, os.pardir)
 py27dir = os.path.abspath(pardir) + '/py27googledriveconnect'
 sys.path.insert(0, py27dir)
-# from downloader import download_latest
+from downloader import download_latest
 
-# datafile = os.path.abspath(pardir) + '/SampleData/R1data.csv'
-# download_latest(1, 'R1data.csv')
+datafile = os.path.abspath(pardir) + '/R1data.csv'
+download_latest(1, 'R1data.csv')
 
 # Accept/Setup Dataframe to be Plotted
-sample_data_live = 'R1datatest.csv'
+sample_data_live = datafile
 sample = pd.read_csv(sample_data_live, parse_dates=[0])
 sampleSI = sample.set_index('Date')
 
