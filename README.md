@@ -1,5 +1,5 @@
 # BioReactor-Data-Logging
-Live and Remote Logging with Interactive Plotting of key Sequencing Batch Reactor data in a web interface.
+Live and Remote Streaming of key Sequencing Batch Reactor data in a web interface.
 
 ### Directory Structure
 Herein the package will have two main sub-directories: Tests, and Projects.
