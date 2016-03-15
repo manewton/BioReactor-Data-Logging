@@ -244,8 +244,8 @@ def writeelse_to_reactordrive(reactorno, filename, InputFile):
                                                       tgt_folder_id}]})
             # Put the content we want in the file
         else:
-        file_to_write.SetContentFile(InputFile)
-        file_to_write.Upload()  # Upload it
+            file_to_write.SetContentFile(InputFile)
+            file_to_write.Upload()  # Upload it
         print 'Revising Data'
     except Exception, e:
         ts = time.time()
