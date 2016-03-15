@@ -2,27 +2,26 @@ import pandas as pd
 import datetime
 
 
-
-def merge_dataframe():
+def add_and_merge_inst2_data(filename):
     """
-    This function takes two specific .csv file titles in the present working
-
+    Takes R1Data file and merges another filename into it by time index.
+    Returns .csv file titles R1Data with additional columns of data all indexed by time.
     """
-    instrument_1 = pd.read_csv("sampledatalive.csv")
-    instrument_2 = pd.read_csv("test 1-31-16.csv", encoding = "utf-16", skiprows=9, sep = '\t')
-    return instrument_1.join(instrument_2)
+    #R1 - first data file parse by data
+    R1 = pd.read_csv("R1Data")
+    R1date = pd.DatetimeIndex(R1["Date"])
+    R1_indexed = R1.set_index(R1date)
+
+    #R2 - second data file (input) is parsed by date
+    R2 = pd.read_csv(filename, encoding = "utf-16", skiprows=8, sep = '\t')
+    R2 = R2.ix[1:]
+    R2 = R2[R2["Sample/ctrl ID"].str.contains("R1")]
+    R2date = pd.DatetimeIndex(R2["Result time"])
+    R2_indexed = R2.set_index(R2date)
+    joined_data = R1_indexed.join(R2_indexed, how = "outer", rsuffix = "_y")
 
 
-def instrument2_cleanup():
-    """
-    Takes file csv file from instrument 2 and cleans it up. spits out a .csv
-    file titled instrument_3.
-    """
-    instrument_2 = pd.read_csv("test 1-31-16.csv", encoding = "utf-16", skiprows=8, sep = '\t')
-    instrument_2 = instrument_2.ix[1:]
-    instrument_2 = instrument_2[instrument_2["Sample/ctrl ID"].str.contains("R1")]
-    instrument_2.to_csv("instrument_3", sep = ",", index_label=False)
-    return instrument_2
+    return joined_data.to_csv("R1Data", sep = ",", index_label=False)
 
 
 
