@@ -24,7 +24,7 @@ output_server("BioReactor_Data_Logging")
 # Retrieves latest updated data file from google drive
 curdir = os.path.join(__file__, os.pardir)
 pardir = os.path.join(curdir, os.pardir)
-py27dir = os.path.abspath(pardir) + '/py27googledriveconnect'
+py27dir = os.path.abspath(pardir) + '/Project'
 sys.path.insert(0, py27dir)
 
 datafile = os.path.abspath(pardir) + '/Data_Management/R1data'
