@@ -16,7 +16,7 @@ in googledriveutils.py, get_newdata())
 - That data is then appended to the data already in the google drive using 
 PyDrive. (Function: in googledriveutils.py, write_to_reactordrive())
 - The full dataframe can then be downloaded to be manipulated as needed. 
-(Function: in downloader.py, download_latest())
+(Function: in downloader.py, download_latest()). The data is downloaded into Data_Management directory. Please refer to readme in that directory for info related to data manipulation and merging of other datasets. 
 - This work flow is done every 30 seconds. (Script: in scheduler.py)
 - The full dataframe is then streamed onto a bokeh server and plotted against 
 time. (Script: in bokehplot.py)
