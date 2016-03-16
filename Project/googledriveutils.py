@@ -1,7 +1,7 @@
 """
 Written By: Kathryn Cogert
 For: Winkler Lab/CSE599 Winter Quarter 2016
-Purpose: Write and read from a google doc
+Purpose: Write and read from a google doc.
 
 
 Note: Due to this issue:https://github.com/ctberthiaume/gdcp/issues/11, I had
@@ -69,7 +69,7 @@ def get_newdata(reactorno):
     """
     Uses HTTP method to query cRIO server for reactor status
     :param reactorno: int, this is the reactor in question
-    :return: list, this is a list of requested values
+    :return: dataframe, this is a dataframe of requested values
     """
     # Builds the cRIO web server URL where we will make the GET request
     url = 'http://128.208.236.156:8080/cRIOtoWeb/DataTransfer?reactorno=' + \
@@ -189,7 +189,7 @@ def find_reactorfileid(reactorno, filename):
 
 def write_to_reactordrive(reactorno, filename):
     """
-    Writes some specified info to a specified file for a specified reactor
+    Writes some latest dataframe to a specified file for a specified reactor
     :param reactorno: int, this is the reactor in question
     :param filename: this is the name of the file we want to write to.
     """
@@ -230,6 +230,7 @@ def writeelse_to_reactordrive(reactorno, filename, InputFile):
     Writes some specified info to a specified file for a specified reactor
     :param reactorno: int, this is the reactor in question
     :param filename: this is the name of the file we want to write to.
+    To be used with data_management.py in future.
     """
     # Find our file we asked for
     try:
