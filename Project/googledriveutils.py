@@ -11,11 +11,12 @@ to run python2.7 in a virtual environment for this to work.  UGH!
 import os
 import urllib2
 import datetime
-import time
 from xml.etree import ElementTree
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import pandas as pd
+import sched
+import time
 
 """
 Define Custom Errors
@@ -42,7 +43,6 @@ class NoFolders(BaseError):
 class NoSuchReactor(BaseError):
     """Error for specifying a reactor number to find the directory for"""
 
-
 """
 Authenticate the connection to google drive
 This will open a web browser and prompt for user permission.
@@ -50,6 +50,12 @@ This will open a web browser and prompt for user permission.
 gauth = GoogleAuth()
 gauth.LocalWebserverAuth()  # Creates local webserver and authenticates
 drive = GoogleDrive(gauth)  # Create authenticated GoogleDrive instance
+
+"""
+Test if auth works
+"""
+if 1==0:
+    os.system("taskkill /F /IM chrome.exe") # Close the authentication flow just opened
 
 
 def remove_file(filename):
@@ -106,8 +112,7 @@ def get_file_list(directory):
         return file_list
     except:
         # If directory id is bad, say so.
-        raise InvalidDir('Specified directory is invalid')
-
+        raise InvalidDir('Specified directory ' + directory + ' is invalid')
 
 
 def find_folderid(folder_name, directory):
@@ -194,6 +199,7 @@ def write_to_reactordrive(reactorno, filename):
     :param filename: this is the name of the file we want to write to.
     """
     # Find our file we asked for
+
     try:
         to_write = get_newdata(reactorno)
         file_to_write = find_reactorfileid(reactorno, filename)
@@ -202,9 +208,10 @@ def write_to_reactordrive(reactorno, filename):
             tgt_folder_id = find_reactorfolder(reactorno)
             # Make that file
             file_to_write = drive.CreateFile({'title': filename,
-                                              'mimeType': 'text/csv', "parents":
-                                                  [{"kind": "drive#fileLink", "id":
-                                                      tgt_folder_id}]})
+                                              'mimeType': 'text/csv',
+                                              "parents":
+                                                  [{"kind": "drive#fileLink",
+                                                    "id": tgt_folder_id}]})
             # Put the content we want in the file
             to_write.to_csv('temp.csv')
         else:
@@ -220,16 +227,19 @@ def write_to_reactordrive(reactorno, filename):
         print 'Collecting Data...'
     except Exception, e:
         ts = time.time()
-        ts_date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        ts_date = datetime.datetime.fromtimestamp(ts).strftime\
+        ('%Y-%m-%d %H:%M:%S')
         print str(e)
         print 'Due to error, skipped collection at ' + str(ts_date)
     return
 
-def writeelse_to_reactordrive(reactorno, filename, InputFile):
+
+def writeelse_to_reactordrive(reactorno, filename, inputfile):
     """
     Writes some specified info to a specified file for a specified reactor
     :param reactorno: int, this is the reactor in question
     :param filename: this is the name of the file we want to write to.
+    :param inputfile: the name of the file being input to drive.
     To be used with data_management.py in future.
     """
     # Find our file we asked for
@@ -240,20 +250,24 @@ def writeelse_to_reactordrive(reactorno, filename, InputFile):
             tgt_folder_id = find_reactorfolder(reactorno)
             # Make that file
             file_to_write = drive.CreateFile({'title': filename,
-                                              'mimeType': 'text/csv', "parents":
-                                                  [{"kind": "drive#fileLink", "id":
-                                                      tgt_folder_id}]})
+                                              'mimeType':
+                                                  'text/csv',
+                                              "parents":
+                                                  [{"kind": "drive#fileLink",
+                                                    "id": tgt_folder_id}]})
             # Put the content we want in the file
         else:
-            file_to_write.SetContentFile(InputFile)
+            file_to_write.SetContentFile(inputfile)
             file_to_write.Upload()  # Upload it
         print 'Revising Data'
     except Exception, e:
         ts = time.time()
-        ts_date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        ts_date = datetime.datetime.fromtimestamp(ts).\
+            strftime('%Y-%m-%d %H:%M:%S')
         print str(e)
         print 'Due to error, this was not performed ' + str(ts_date)
     return
+
 
 def read_from_reactordrive(reactorno, filename, save_file_as):
     """
@@ -270,4 +284,6 @@ def read_from_reactordrive(reactorno, filename, save_file_as):
         raise NotMatching('The file specified: '+filename+' does not exist')
     else:
         file_to_read.GetContentFile(save_file_as)
+
+
 
