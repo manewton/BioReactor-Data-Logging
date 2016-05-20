@@ -47,9 +47,14 @@ class NoSuchReactor(BaseError):
 Authenticate the connection to google drive
 This will open a web browser and prompt for user permission.
 """
-gauth = GoogleAuth()
-gauth.LocalWebserverAuth()  # Creates local webserver and authenticates
-drive = GoogleDrive(gauth)  # Create authenticated GoogleDrive instance
+#gauth = GoogleAuth()
+#gauth.LocalWebserverAuth()  # Creates local webserver and authenticates
+#drive = GoogleDrive(gauth)  # Create authenticated GoogleDrive instance
+
+gauth = GoogleAuth("settings.yaml")
+gauth.CommandLineAuth()
+gauth.Authorize()
+drive = GoogleDrive(gauth)
 
 """
 Test if auth works
