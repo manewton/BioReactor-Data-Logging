@@ -6,6 +6,10 @@ Purpose: Write and read from a google doc.
 
 Note: Due to this issue:https://github.com/ctberthiaume/gdcp/issues/11, I had
 to run python2.7 in a virtual environment for this to work.  UGH!
+To Do:
++Visualization Tools
++Combinations with human collected data
+
 """
 
 import os
@@ -15,7 +19,6 @@ from xml.etree import ElementTree
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import pandas as pd
-import sched
 import time
 
 """
@@ -43,24 +46,19 @@ class NoFolders(BaseError):
 class NoSuchReactor(BaseError):
     """Error for specifying a reactor number to find the directory for"""
 
+
+class BadFileName(BaseError):
+    """Warning: Incorrectly named file in data collection folder"""
+
 """
 Authenticate the connection to google drive
-This will open a web browser and prompt for user permission.
+Requires correct client_secrets, credentials, and settings files.
 """
-#gauth = GoogleAuth()
-#gauth.LocalWebserverAuth()  # Creates local webserver and authenticates
-#drive = GoogleDrive(gauth)  # Create authenticated GoogleDrive instance
 
 gauth = GoogleAuth("settings.yaml")
 gauth.CommandLineAuth()
 gauth.Authorize()
 drive = GoogleDrive(gauth)
-
-"""
-Test if auth works
-"""
-if 1==0:
-    os.system("taskkill /F /IM chrome.exe") # Close the authentication flow just opened
 
 
 def remove_file(filename):
@@ -172,123 +170,93 @@ def find_reactorfolder(reactorno):
         raise NoSuchReactor('There is no reactor with that number')
 
 
-def find_reactorfileid(reactorno, filename):
+def find_reactorfile(reactorno, collect_int, file_length):
     """
-    Find a specific file withn a specified reactor's directory
+    Find latest or make new file in specified reactor's directory
     :param reactorno: int, the number of reactor in question
-    :param filename: str, the name of file being looked for
-    :return: file, this is the file
-     OR
-    :return: boolean, this is false if there is no file matching specified
-    name. The boolean is then used in write_to_reactordrive to make a new file
+    :param collect_int: float, this is the number of secs between data pts.
+    :param file_length: float, this is the number of days in a file.
+    :return: file_to_write, this is the file
     """
+    # Get the current date
+    what_time_is_it = datetime.datetime.now()
     # Get file id of our reactor's folder
     tgt_folder_id = find_reactorfolder(reactorno)
     file_list = get_file_list(tgt_folder_id)  # List all files in that folder
     no_file = True
     for afile in file_list:
-        if afile['title'] == filename:  # Look for file that matches name
-            # Now we know that file exists, so we don't need to make it later
-            no_file = False
-            fileid = afile
-            return fileid  # Return our file of interest
-    # If file we asked for doesn't exist, tell next function with a boolean.
+        # If it's not a folder, try to parse the name and get the time stamp
+        if afile['mimeType'] != 'application/vnd.google-apps.folder':
+            file_title = afile['title']
+            try:
+                file_ts = datetime.datetime.strptime(file_title,
+                                                     'R1data %Y-%m-%d')
+            except Exception, e:
+                # If can't parse file, let user know their organization sucks
+                # And assign a crazy time stamp that will be days>14
+                print 'Warning: ' + str(e)
+                file_ts = datetime.datetime(year=1990, month=1, day=9, hour=0)
+
+            # Take difference of current and file time stamp
+            ts_delta = what_time_is_it - file_ts
+            # Select out # of days
+            days_since_creation = ts_delta.days
+            # Look for file made in specified time frame
+            if days_since_creation < file_length:
+                no_file = False
+                file_to_write = afile  # Return our file of interest
+    # If file we asked for doesn't exist, make a new one!
     if no_file:
-        return False
+        # File name format is "R#Data YYYY-MM-DD"
+        filename = 'R1data {:%Y-%m-%d}'.format(what_time_is_it)
+        print 'Making new file: ' + filename
+        # Create a new file with that name
+        file_to_write = drive.CreateFile({'title': filename,
+                                          'mimeType': 'text/csv',
+                                          "parents":
+                                              [{"kind": "drive#fileLink",
+                                                "id": tgt_folder_id}]})
+        to_write = get_newdata(reactorno)  # Get first data pt
+        to_write.to_csv('temp.csv')  # Convert to CSV
+        file_to_write.SetContentFile('temp.csv')  # Write this to google drive
+        remove_file('temp.csv')  # Remove temp file w/ first data pt
+        file_to_write.Upload()  # Upload it
+        # Tell user what happened
+        print 'Sucessfully created new file ' + filename
+        time.sleep(collect_int)  # Wait before collecting another pt
+    return file_to_write
 
 
-def write_to_reactordrive(reactorno, filename):
+def write_to_reactordrive(reactorno, collect_int, file_length):
     """
     Writes some latest dataframe to a specified file for a specified reactor
     :param reactorno: int, this is the reactor in question
-    :param filename: this is the name of the file we want to write to.
+    :param collect_int: float, this is the number of secs between data pts.
+    :param file_length: float, this is the number of days in a data file
     """
-    # Find our file we asked for
-
+    # Get latest data point from the reactor.
     try:
         to_write = get_newdata(reactorno)
-        file_to_write = find_reactorfileid(reactorno, filename)
-        if file_to_write is False:  # Create a new file if file doesn't exist
-            # Find the id of directory we want to save to.
-            tgt_folder_id = find_reactorfolder(reactorno)
-            # Make that file
-            file_to_write = drive.CreateFile({'title': filename,
-                                              'mimeType': 'text/csv',
-                                              "parents":
-                                                  [{"kind": "drive#fileLink",
-                                                    "id": tgt_folder_id}]})
-            # Put the content we want in the file
-            to_write.to_csv('temp.csv')
-        else:
-            file_to_write.GetContentFile('temp.csv')
-            old_data = pd.read_csv('temp.csv')
-            old_data = old_data.set_index('Date')
-            new_data = old_data.append(to_write)
-            new_data.to_csv('temp.csv')
+        # Find our file we asked for
+        file_to_write = find_reactorfile(reactorno, collect_int, file_length)
+        # Take all data in drive and convert to dataframe
+        file_to_write.GetContentFile('temp.csv')
+        old_data = pd.read_csv('temp.csv')
+        old_data = old_data.set_index('Date')
+        # Append latest data point in local csv file
+        new_data = old_data.append(to_write)
+        new_data.to_csv('temp.csv')
+        # Write to google drive file
         file_to_write.SetContentFile('temp.csv')
+        # Delete that local file
         remove_file('temp.csv')
-
         file_to_write.Upload()  # Upload it
-        print 'Collecting Data...'
+        print 'Reactor #' + str(reactorno)+' Data point saved successfully'
     except Exception, e:
-        ts = time.time()
-        ts_date = datetime.datetime.fromtimestamp(ts).strftime\
-        ('%Y-%m-%d %H:%M:%S')
         print str(e)
-        print 'Due to error, skipped collection at ' + str(ts_date)
+        ts_str = '{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
+        print 'Due to error, skipped collection at ' + str(ts_str)
     return
-
-
-def writeelse_to_reactordrive(reactorno, filename, inputfile):
-    """
-    Writes some specified info to a specified file for a specified reactor
-    :param reactorno: int, this is the reactor in question
-    :param filename: this is the name of the file we want to write to.
-    :param inputfile: the name of the file being input to drive.
-    To be used with data_management.py in future.
-    """
-    # Find our file we asked for
-    try:
-        file_to_write = find_reactorfileid(reactorno, filename)
-        if file_to_write is False:  # Create a new file if file doesn't exist
-            # Find the id of directory we want to save to.
-            tgt_folder_id = find_reactorfolder(reactorno)
-            # Make that file
-            file_to_write = drive.CreateFile({'title': filename,
-                                              'mimeType':
-                                                  'text/csv',
-                                              "parents":
-                                                  [{"kind": "drive#fileLink",
-                                                    "id": tgt_folder_id}]})
-            # Put the content we want in the file
-        else:
-            file_to_write.SetContentFile(inputfile)
-            file_to_write.Upload()  # Upload it
-        print 'Revising Data'
-    except Exception, e:
-        ts = time.time()
-        ts_date = datetime.datetime.fromtimestamp(ts).\
-            strftime('%Y-%m-%d %H:%M:%S')
-        print str(e)
-        print 'Due to error, this was not performed ' + str(ts_date)
-    return
-
-
-def read_from_reactordrive(reactorno, filename, save_file_as):
-    """
-    Reads a specified file from a specified reactors directory and saves it
-    locally.
-    :param reactorno: int, this is the reactor in question
-    :param filename: this is the name of the file we want to read
-    :param save_file_as: str, this is what you want to save the file as.
-    :return:
-    """
-    # find file we asked for
-    file_to_read = find_reactorfileid(reactorno, filename)
-    if file_to_read is False:
-        raise NotMatching('The file specified: '+filename+' does not exist')
-    else:
-        file_to_read.GetContentFile(save_file_as)
 
 
 
