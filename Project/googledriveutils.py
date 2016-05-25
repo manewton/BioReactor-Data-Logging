@@ -47,9 +47,6 @@ class NoSuchReactor(BaseError):
     """Error for specifying a reactor number to find the directory for"""
 
 
-class BadFileName(BaseError):
-    """Warning: Incorrectly named file in data collection folder"""
-
 """
 Authenticate the connection to google drive
 Requires correct client_secrets, credentials, and settings files.
@@ -170,33 +167,52 @@ def find_reactorfolder(reactorno):
         raise NoSuchReactor('There is no reactor with that number')
 
 
-def find_reactorfile(reactorno, collect_int, file_length):
+def return_reactorfilelist(reactorno):
     """
-    Find latest or make new file in specified reactor's directory
+    Return list of correctly named files in specifed reactors directory
     :param reactorno: int, the number of reactor in question
-    :param collect_int: float, this is the number of secs between data pts.
-    :param file_length: float, this is the number of days in a file.
-    :return: file_to_write, this is the file
+    :return:
     """
-    # Get the current date
-    what_time_is_it = datetime.datetime.now()
-    # Get file id of our reactor's folder
     tgt_folder_id = find_reactorfolder(reactorno)
     file_list = get_file_list(tgt_folder_id)  # List all files in that folder
-    no_file = True
+    reactor_file_list = []
+    filename_format = 'R' + str(reactorno) + 'data %Y-%m-%d'
     for afile in file_list:
         # If it's not a folder, try to parse the name and get the time stamp
         if afile['mimeType'] != 'application/vnd.google-apps.folder':
             file_title = afile['title']
             try:
                 file_ts = datetime.datetime.strptime(file_title,
-                                                     'R1data %Y-%m-%d')
+                                                     filename_format)
             except Exception, e:
                 # If can't parse file, let user know their organization sucks
-                # And assign a crazy time stamp that will be days>14
                 print 'Warning: ' + str(e)
-                file_ts = datetime.datetime(year=1990, month=1, day=9, hour=0)
+                continue  # skip this iteration
+            reactor_file_list.append(afile)  # Add this file to the list
+    return reactor_file_list
 
+
+def find_reactorfile(reactorno, collect_int=30, file_length=14):
+    """
+    Find latest or make new file in specified reactor's directory
+    :param reactorno: int, the number of reactor in question
+    :param collect_int: float, this is the number of secs between data pts.
+    :param make: boolean, if true (default) than make a new file if needed
+    :param file_length: float, this is the number of days in a file.
+    :return: our_file, this is the file
+    """
+    # Get the current date
+    what_time_is_it = datetime.datetime.now()
+    # Get file id of our reactor's folder
+    tgt_folder_id = find_reactorfolder(reactorno)
+    file_list = return_reactorfilelist(1)  # List all files in that folder
+    no_file = True
+    filename_format = 'R' + str(reactorno) + 'data %Y-%m-%d'
+    if file_list:
+        for afile in file_list:
+            # Get each files timestamp
+            file_ts = datetime.datetime.strptime(afile['title'],
+                                                 filename_format)
             # Take difference of current and file time stamp
             ts_delta = what_time_is_it - file_ts
             # Select out # of days
@@ -204,27 +220,84 @@ def find_reactorfile(reactorno, collect_int, file_length):
             # Look for file made in specified time frame
             if days_since_creation < file_length:
                 no_file = False
-                file_to_write = afile  # Return our file of interest
+                our_file = afile  # Return our file of interest
+                break
     # If file we asked for doesn't exist, make a new one!
     if no_file:
         # File name format is "R#Data YYYY-MM-DD"
-        filename = 'R1data {:%Y-%m-%d}'.format(what_time_is_it)
+        filename = filename_format.format(what_time_is_it)
         print 'Making new file: ' + filename
         # Create a new file with that name
-        file_to_write = drive.CreateFile({'title': filename,
+        our_file = drive.CreateFile({'title': filename,
                                           'mimeType': 'text/csv',
                                           "parents":
                                               [{"kind": "drive#fileLink",
                                                 "id": tgt_folder_id}]})
         to_write = get_newdata(reactorno)  # Get first data pt
         to_write.to_csv('temp.csv')  # Convert to CSV
-        file_to_write.SetContentFile('temp.csv')  # Write this to google drive
+        our_file.SetContentFile('temp.csv')  # Write this to google drive
         remove_file('temp.csv')  # Remove temp file w/ first data pt
-        file_to_write.Upload()  # Upload it
+        our_file.Upload()  # Upload it
         # Tell user what happened
         print 'Sucessfully created new file ' + filename
         time.sleep(collect_int)  # Wait before collecting another pt
-    return file_to_write
+    return our_file
+
+
+def read_from_reactordrive(reactorno, filename, latest=1):
+    """
+    Reads the google drive files for reactor data and saves as a csv
+    :param reactorno: int, the number of reactor in question
+    :param filename: name of the file we want to save as
+    :param latest: latest file only if true, else or all files as master csv
+    :return:
+    """
+    # Get the current date
+    what_time_is_it = datetime.datetime.now()
+
+    file_list = return_reactorfilelist(reactorno)  # Find files
+    sortable_file_list = []  # initialize this sortable list
+    idx = 0
+    filename_format = 'R' + str(reactorno) + 'data %Y-%m-%d'
+    for afile in file_list:
+        # Get each files timestamp
+        file_ts = datetime.datetime.strptime(afile['title'],
+                                             filename_format)
+        # Take difference of current and file time stamp
+        ts_delta = what_time_is_it - file_ts
+        # These are the key params we'll need to sort and select the file
+        file_summary = (idx, ts_delta, afile['title'], afile['id'])
+        sortable_file_list.append(file_summary)
+        idx = +1
+    if latest:
+        # If we only want the latest file, find the latest file with ts_delta
+        tgt_file = min(sortable_file_list, key=lambda t: t[1])
+        tgt_file_idx = tgt_file[0]
+        # Use index from
+        file_list[tgt_file_idx].GetContentFile(filename)
+    else:
+        # Start filling up a dataframe
+        file_list[0].GetContentFile('temp.csv')
+        masterdf = pd.read_csv('temp.csv')
+        masterdf = masterdf.set_index('Date')
+        # Remove temporary file & first entry in list
+        remove_file('temp.csv')  # Remove temp file
+        del file_list[0]
+        # Fill up dataframe with the other files by appending
+        idx = 0
+        for afile in file_list:
+            # Download and convert to dataframe
+            file_list[idx].GetContentFile('temp.csv')
+            idx += 1
+            to_append_df = pd.read_csv('temp.csv')
+            to_append_df = to_append_df.set_index('Date')
+            remove_file('temp.csv')  # Remove temp file
+            masterdf = masterdf.append(to_append_df)
+        # Sort from oldest to newest
+        masterdf.index = pd.DatetimeIndex(masterdf.index)
+        masterdf = masterdf.sort_index(ascending=True)
+        masterdf.to_csv(filename)
+    return
 
 
 def write_to_reactordrive(reactorno, collect_int, file_length):
