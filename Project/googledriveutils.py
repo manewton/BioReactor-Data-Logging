@@ -262,8 +262,7 @@ def find_make_reactorfile(reactorno, collect_int, file_length):
         what_time_is_it = datetime.datetime.now()
         # File name format is "R#Data YYYY-MM-DD"
         filename_format = 'R' + str(reactorno) + 'data %Y-%m-%d'
-        filename = filename_format.format(what_time_is_it)
-        print 'Making new file: ' + filename
+        filename = what_time_is_it.strftime(filename_format)
         # Create a new file with that name
         tgt_folder_id = find_reactorfolder(reactorno)
         our_file = drive.CreateFile({'title': filename,
