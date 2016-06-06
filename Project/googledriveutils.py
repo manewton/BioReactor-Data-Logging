@@ -90,8 +90,10 @@ def get_newdata(reactorno):
     # Makes the GET request
     try:
         result = urllib2.urlopen(url).read()
-    except:
-        raise CrioConnect
+    except Exception, e:
+        raise CrioConnect(str(e) + ': Problem connecting to cRIO')
+        return
+    #TODO: Send me an email if you can't connect to the cRIO
     # Result is a labview "cluster" type variable, (like a struct in java)
     # But it is saved here as an XML string and converted to a parseable form
     try:
@@ -107,8 +109,9 @@ def get_newdata(reactorno):
         df.loc[0] = data
         df = df.set_index('Date')
         return df
-    except:
-        raise CrioFormat
+    except Exception, e:
+        raise CrioFormat(str(e) +
+                         'Problem formatting data from cRIO to saveable form')
 
 
 def get_file_list(directory):
@@ -308,7 +311,8 @@ def read_from_reactordrive(reactorno, latest, csv=False, filename='temp.csv'):
             return return_df
     else:
         # If we asked for all, concatenate
-        file_list, sortable_file_list = list_rfiles_by_date(reactorno)
+        file_list, sortable_file_list = list_rfiles_by_date(reactorno,
+                                                            latest=False)
         # Start filling up a dataframe
         file_list[0].GetContentFile('temp.csv')
         masterdf = pd.read_csv('temp.csv')
@@ -345,9 +349,9 @@ def write_to_reactordrive(reactorno, collect_int, file_length):
     :param file_length: float, this is the number of days in a data file
     """
     # Get latest data point from the reactor.
-    to_write = get_newdata(reactorno)
         # Find our file we asked for
     try:
+        to_write = get_newdata(reactorno)
         file_to_write = find_make_reactorfile(reactorno, collect_int,
                                               file_length)
     except Exception, e:
