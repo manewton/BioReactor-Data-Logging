@@ -24,7 +24,7 @@ def main():
         print 'Querying Reactor #1'
         write_to_reactordrive(1, collect_int, file_length)
         threading.Timer(collect_int, r1_fromreactor).start()
-
+    """
     def r1_updatemasterfile():
         # Takes relevant point from giant data file and puts in master R1 file
         x = datetime.today()
@@ -35,6 +35,7 @@ def main():
         print 'Querying Reactor #1 Master File'
 
     r1_updatemasterfile()
+    """
     r1_fromreactor()
 
 
