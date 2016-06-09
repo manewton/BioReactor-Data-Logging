@@ -87,12 +87,4 @@ def get_val_from(reactorno, timestamp, val, timestamp2=False):
         # If that doesn't work, tell user they used a bum label.
         raise InvalidParam('Specified parameter ' + val + ' is invalid')
 
-str1 = "05/25/2016 14:12"
-str2 = "05/25/2016 16:35"
-ts1 = datetime.datetime.strptime(str1, '%m/%d/%Y %H:%M')
-ts2 = datetime.datetime.strptime(str2, '%m/%d/%Y %H:%M')
-my_vals = get_values_from(1, datetime.datetime.now(), datetime.datetime.now()-datetime.timedelta(hours=4))
-#print my_vals
-# 'DO mg/L' 'pH' 'Ammonium',
-my_vals.to_csv('tempDO.csv')
 

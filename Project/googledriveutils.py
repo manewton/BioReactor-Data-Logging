@@ -9,6 +9,7 @@ to run python2.7 in a virtual environment for this to work.  UGH!
 
 
 """
+#TODO: ALARM LOG
 #TODO: Visualization Tools
 #TODO: Combinations with human collected data
 import os
