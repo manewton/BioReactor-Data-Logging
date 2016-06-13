@@ -11,7 +11,6 @@ to run python2.7 in a virtual environment for this to work.  UGH!
 """
 #TODO: ALARM LOG
 #TODO: Visualization Tools
-#TODO: Combinations with human collected data
 import os
 import urllib2
 import datetime
@@ -363,16 +362,23 @@ def write_to_reactordrive(reactorno, collect_int, file_length):
         print str(e)
         return
         # Take all data in drive and convert to dataframe
-    file_to_write.GetContentFile('temp.csv')
-    old_data = pd.read_csv('temp.csv')
-    old_data = old_data.set_index('Date')
-    # Append latest data point in local csv file
-    new_data = old_data.append(to_write)
-    new_data.to_csv('temp.csv')
-    # Write to google drive file
-    file_to_write.SetContentFile('temp.csv')
-    # Delete that local file
-    remove_file('temp.csv')
+    try:
+        file_to_write.GetContentFile('temp.csv')
+        old_data = pd.read_csv('temp.csv')
+        old_data = old_data.set_index('Date')
+        # Append latest data point in local csv file
+        new_data = old_data.append(to_write)
+        new_data.to_csv('temp.csv')
+        # Write to google drive file
+        file_to_write.SetContentFile('temp.csv')
+        # Delete that local file
+        remove_file('temp.csv')
+    except Exception, e:
+        ts_str = '{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
+        print 'Due to error with file writing,' + \
+              'skipped collection at ' + \
+              str(ts_str) + ':'
+        print str(e)
     try:
         file_to_write.Upload()  # Upload it
         print 'Reactor #' + str(reactorno)+' Data point saved successfully'
