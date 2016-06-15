@@ -1,25 +1,33 @@
 """
 Written By: Kathryn Cogert
-For: Winkler Lab/CSE599 Winter Quarter 2016
-Purpose: Read reactor data to google drive every 30 secs.
+For: Winkler Lab Bioreactor DataLogging
+May, 2016
+Purpose: Allow access and manipulation of the master reactor 1 data file.
 """
 
 # Import Libraries
 import datetime
+import imp
+import os
 import pandas as pd
-import downloader as dl
 from openpyxl import load_workbook
-from googledriveutils import find_folderid, get_file_list, remove_file
 
+# Can't import local modules absolutely with bokeh, so doing it relatively
+dl = imp.load_source('downloader', os.getcwd()+'/Project/downloader.py')
+gdu = imp.load_source('googledriveutils', os.getcwd() +
+                      '/Project/googledriveutils.py')
+find_folderid = gdu.find_folderid
+get_file_list = gdu.get_file_list
+remove_file = gdu.remove_file
 
 # Define constants
 COL_LABEL = '\nProbe - '
 # TODO: ORP PROBE: REVISE THIS DATE when orp probe is added
-IGNORE_BEFORE = pd.to_datetime('5.24.2016')
+IGNORE_BEFORE = pd.to_datetime('6.1.2016')
 PROBE_DICT = {'DO (mg/L)': 'DO mg/L',
+              'ORP (mV)': 'ORP mV',
               'pH': 'pH',
-              'NH4+ (mgN/L)': 'Ammonium',
-              'ORP (mV)': 'ORP'}
+              'NH4+ (mgN/L)': 'NH4 mg/L'}
 TS = '\nTimestamps'
 
 
@@ -88,20 +96,23 @@ def save_r1masterfile(csv, rows_to_skip=12, filename='temp.xlsx'):
     """
     # Get the file we want
     master_file = find_r1masterfile()
+    # Try downloading the file and return an error if that doesn't work
     try:
-        master_file.GetContentFile(filename)
+        # This mimetype allows downloading google sheets file as a .xlsx
+        master_file.GetContentFile(filename,
+                                   mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception, e:
-        print "Warning: Something wrong with file R1 Master File."
+        print "Warning: Something wrong with downloading R1 Master File save."
         print str(e)
+        return e
         # TODO: add an email alarm to responsible user
-
-    if csv:
+    if csv: # If we want as a csv...
         return master_file
-    else:
+    else: # If we want as a dataframe...
         df = pd.read_excel(filename,
-                           encoding="utf-16",
                            skiprows=rows_to_skip,
-                           sep='\t')
+                           sep='\t',
+                           index_col='Date')
         remove_file(filename)
         # TODO: Is this broken?
         return df
@@ -113,14 +124,19 @@ def upload_r1masterfile(filename='temp.xlsx'):
     :param filename: name of local file to upload
     :return:
     """
-    # Get the file we want
+    # Get the file we want from drive
     master_file = find_r1masterfile()
+    # Try uploading the file and if it doesn't work return an error
     try:
         master_file.SetContentFile(filename)
-        master_file.Upload()
+        # Convert parameter will convert the .xlsx file to a google sheets file
+        master_file.Upload(param={'convert': True})
+        print 'Master file updated. ' + str(datetime.datetime.now())
+        return
     except Exception, e:
-        print "Warning: Something wrong with file R1 Master File."
+        print "Warning: Something wrong with uploading R1 Master File."
         print str(e)
+        return e
         # TODO: add an email alarm to responsible user
 
 
@@ -132,10 +148,11 @@ def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
     :return: master file as dataframe.
     """
     # Get the R1 master file as a file
-    save_r1masterfile(True)
+    e = save_r1masterfile(True)
+    if e:
+        return
     # Convert the juicy stuff to a dataframe
     masterdf = pd.read_excel(filename,
-                             encoding="utf-16",
                              skiprows=rows_to_skip,
                              sep='\t',
                              index_col='Date')
@@ -150,24 +167,25 @@ def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
     # Ignore everything before the ORP probe was added
     # Find all the blanks in the columns we can auto populate
     for col in probedf.columns:
-        # TODO: Add ORP Probe and remove this if clause
-        if 'ORP' not in col:
-            blankdf = probedf[pd.isnull(probedf[col])]
-            # If there are empties then fill them.
-            if ~blankdf.empty:
-                probe, point = col.split(COL_LABEL)
-                # TODO: Make this more efficient
-                for each in blankdf.index:
-                    # Get the timestamps of the empties
-                    time = tsdf.loc[each, point+TS]
-                    ts = each + pd.DateOffset(hour=time.hour,
-                                              minute=time.minute)
-                    # Get the relevant value
-                    val = dl.get_val_from(1, ts, PROBE_DICT.get(probe))
-                    # Assign to the dataframe
-                    probedf.set_value(each, col, val)
-                    save_to_workbook(val, each, col)
-    upload_r1masterfile()
-    print 'Master file updated. ' + str(datetime.datetime.now())
-    remove_file('temp.xlsx')
+        blankdf = probedf[pd.isnull(probedf[col])]
+        # If there are empties then fill them.
+        if ~blankdf.empty:
+            probe, point = col.split(COL_LABEL)
+            # TODO: Make this more efficient
+            for each in blankdf.index:
+                # Get the timestamps of the empties
+                time = tsdf.loc[each, point+TS]
+                ts = each + pd.DateOffset(hour=time.hour,
+                                          minute=time.minute)
+                # Get the relevant value
+                val = dl.get_val_from(1, ts, PROBE_DICT.get(probe))
+                # Assign to the dataframe
+                print each, col, val
+                probedf.set_value(each, col, val)
+                save_to_workbook(val, each, col)
+    e = upload_r1masterfile()
+    if e:
+        return
     return probedf
+
+populate_r1masterfile()
