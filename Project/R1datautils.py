@@ -99,6 +99,7 @@ def save_r1masterfile(csv, rows_to_skip=12, filename='temp.xlsx'):
         # TODO: Is this broken?
         return df
 
+
 def upload_r1masterfile(filename='temp.xlsx'):
     # Get the file we want
     master_file = find_r1masterfile()
@@ -109,7 +110,6 @@ def upload_r1masterfile(filename='temp.xlsx'):
         print "Warning: Something wrong with file R1 Master File."
         print str(e)
         # TODO: add an email alarm to responsible user
-
 
 
 def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
@@ -150,5 +150,3 @@ def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
     print 'Master file updated. ' + str(datetime.datetime.now())
     remove_file('temp.xlsx')
     return probedf
-probedf=save_r1masterfile(False)
-print probedf.iloc([0,0])

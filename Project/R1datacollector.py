@@ -5,8 +5,9 @@ Purpose: Read reactor data to google drive every 30 secs.
 """
 
 import threading
-from googledriveutils import write_to_reactordrive
-
+import imp
+import os
+gdu = imp.load_source('googledriveutils', os.getcwd() + '/Project/googledriveutils.py')
 
 def main():
     """
@@ -20,9 +21,8 @@ def main():
     def r1_fromreactor():
         # Takes data from cRIO and puts it in google drive
         print 'Querying Reactor #1'
-        write_to_reactordrive(1, collect_int, file_length)
+        gdu.write_to_reactordrive(1, collect_int, file_length)
         threading.Timer(collect_int, r1_fromreactor).start()
-        print 'Querying Reactor #1 Master File'
 
     r1_fromreactor()
 
