@@ -87,6 +87,7 @@ def save_r1masterfile(csv, rows_to_skip=12, filename='temp.xlsx'):
         return master_file
     else:
         df = pd.read_excel(filename,
+                           sheetname='Reactor Data',
                            encoding="utf-16",
                            skiprows=rows_to_skip,
                            sep='\t',
@@ -117,6 +118,7 @@ def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
     save_r1masterfile(True)
     # Convert the juicy stuff to a dataframe
     masterdf = pd.read_excel(filename,
+                             sheetname='Reactor Data',
                              encoding="utf-16",
                              skiprows=rows_to_skip,
                              sep='\t',
@@ -150,3 +152,5 @@ def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
     print 'Master file updated. ' + str(datetime.datetime.now())
     remove_file('temp.xlsx')
     return probedf
+
+populate_r1masterfile()
