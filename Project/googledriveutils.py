@@ -50,7 +50,6 @@ class BadFileNames(BaseError):
 
 class CrioConnect(BaseError):
     """Problem connecting to cRIO"""
-
 class CrioFormat(BaseError):
     """Problem formatting data from cRIO to saveable form"""
 
@@ -58,10 +57,22 @@ class CrioFormat(BaseError):
 Authenticate the connection to google drive
 Requires correct client_secrets, credentials, and settings files.
 """
+gauth = GoogleAuth(os.getcwd()+"/settings.yaml")
+gauth.LoadCredentialsFile("mycreds.txt")
+if gauth.credentials is None:
+    # Authenticate if they're not there
+    gauth.LocalWebserverAuth()
+elif gauth.access_token_expired:
+    # Refresh them if expired
+    gauth.Refresh()
+else:
+    # Initialize the saved creds
+    gauth.Authorize()
+# Save the current credentials to a file
+gauth.SaveCredentialsFile("mycreds.txt")
 
-gauth = GoogleAuth("settings.yaml")
-gauth.CommandLineAuth()
-gauth.Authorize()
+#gauth.CommandLineAuth()
+#gauth.Authorize()
 drive = GoogleDrive(gauth)
 
 
@@ -162,6 +173,35 @@ def find_folderid(folder_name, directory):
         raise NoFolders('There are no folders in specified directory')
 
 
+def find_file(file_name, directory):
+    """
+    Returns a file of a given name in a given directory
+    :param file_name: str, this is the name of file of interest
+    :param directory: str, this is the folder ID of the directory of interest
+    :return: googledriveobject, this is the file you are looking for.
+    :exception NotMatching: if no folder of specified name is found, raise
+    exception
+    :exception NoFolders: if there are no folders in the specified directory,
+    raise exception
+    """
+    # get list of files from our directory of interest
+    file_list = get_file_list(directory)
+    # We'll use this to decide whether we need to raise an error later
+    no_files_here = True
+    for afile in file_list:
+        no_files_here = False  # We won't need to raise the error
+        if afile['title'] == file_name:
+            # Look for folder that matches name, and save the folder ID
+            fid = afile['id']
+            return afile
+    # If nothing matched, the name was wrong
+    if 'fid' in locals() or 'fid' in globals():
+        raise NotMatching('No file of that name in specified dir')
+    # if none of files in the list were folders, then say so.
+    if no_files_here:
+        raise NoFolders('There are no files in specified directory')
+
+
 def find_reactorfolder(reactorno):
     """
     Finds the directory of a specified reactor. (reactors are numbered 1
@@ -198,7 +238,7 @@ def return_reactorfilelist(reactorno):
         if afile['mimeType'] != 'application/vnd.google-apps.folder':
             file_title = afile['title']
             try:
-                file_ts = datetime.datetime.strptime(file_title,
+                datetime.datetime.strptime(file_title,
                                                      filename_format)
             except Exception, e:
                 # If can't parse file, let user know their organization sucks

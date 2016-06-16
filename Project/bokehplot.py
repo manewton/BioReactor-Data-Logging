@@ -10,30 +10,20 @@ Requirements:
             -- Then call this file from command line
 """
 import os
-import sys
 
 import pandas as pd
 from bokeh.client import push_session
 from bokeh.plotting import Figure, output_server, curdoc, gridplot
 
-from downloader import download_latest
+from googledriveutils import read_from_reactordrive
 
 # Prepare output to server
 output_server("BioReactor_Data_Logging")
 
 # Retrieves latest updated data file from google drive
-curdir = os.path.join(__file__, os.pardir)
-pardir = os.path.join(curdir, os.pardir)
-py27dir = os.path.abspath(pardir) + '/Project'
-sys.path.insert(0, py27dir)
-
-datafile = os.path.abspath(pardir) + '/Data_Management/R1data'
-download_latest(1, 'R1data')
+R1_data_frame = read_from_reactordrive(1, False)
 
 # Accept/Setup Data-frame to be Plotted
-R1_data_live = datafile
-R1_data_frame = pd.read_csv(R1_data_live, parse_dates=[0])
-R1_data_frame = R1_data_frame.set_index('Date')
 R1_data_frame = R1_data_frame.tail(100)
 
 x_low = R1_data_frame.index[1]
@@ -122,7 +112,7 @@ session = push_session(curdoc())
 # Update callback function to refresh data source and plots.
 def update():
     csv_file = os.path.abspath(pardir) + '/Data_Management/R1data'
-    download_latest(1, 'R1data')
+    read_from_reactordrive(1, False)
     data_live = csv_file
     data_frame = pd.read_csv(data_live, parse_dates=[0])
     data_frame = data_frame.set_index('Date')

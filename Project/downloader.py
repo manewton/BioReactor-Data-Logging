@@ -3,11 +3,15 @@ Written By: Kathryn Cogert
 For: Winkler Lab/CSE599 Winter Quarter 2016
 Purpose: Downloads most recent copy of reactor data.
 """
-
-import datetime
-from googledriveutils import list_rfiles_by_date, read_from_reactordrive
+import os
 import pandas as pd
-
+import imp
+# Can't import local modules absolutely with bokeh, so doing it relatively
+gdu = imp.load_source('googledriveutils', os.getcwd() +
+                      '/Project/googledriveutils.py')
+list_rfiles_by_date = gdu.list_rfiles_by_date
+read_from_reactordrive = gdu.read_from_reactordrive
+# TODO: Make more efficient
 
 class BaseError(Exception):
     """Base error for google drive manipulation and navigation errors."""
@@ -85,6 +89,6 @@ def get_val_from(reactorno, timestamp, val, timestamp2=False):
         return our_val
     except:
         # If that doesn't work, tell user they used a bum label.
-        raise InvalidParam('Specified parameter ' + val + ' is invalid')
+        raise InvalidParam('Specified parameter ' + str(val) + ' is invalid')
 
 
