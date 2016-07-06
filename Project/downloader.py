@@ -32,11 +32,14 @@ def get_values_from(reactorno, timestamp, timestamp2=False):
     # Format our timestamp properly
     ts_formatted = pd.to_datetime(timestamp)
     # Get the reactor files
-    latest_file, file_idents = list_rfiles_by_date(reactorno)
-    latest_ts = file_idents[3]
     # If we want a range of entries, find the earliest timestamp
-    if timestamp2 == False:
-        ts_first = timestamp
+    # TODO: error if date is before now or out of collection range
+    if timestamp2 is False:
+        df = read_from_reactordrive(reactorno, timestamp.date())
+        df['Absolute Time Diff'] = abs(df.index - timestamp)
+        tgt_idx = df['Absolute Time Diff'].argmin()
+        our_vals = df.loc[tgt_idx]
+        our_vals = our_vals.drop('Absolute Time Diff')
     else:
         ts_formatted2 = pd.to_datetime(timestamp2)
         if ts_formatted < ts_formatted2:
@@ -45,26 +48,24 @@ def get_values_from(reactorno, timestamp, timestamp2=False):
         else:
             ts_first = ts_formatted2
             ts_second = ts_formatted
-    # Check to see if we have to download all the files or just the latest
-    if ts_first >= latest_ts:
-        df = read_from_reactordrive(reactorno, True)
-    else:
-        df = read_from_reactordrive(reactorno, False)
-    # Find the time point closest to our first/only timestamp
-    df['Absolute Time Diff'] = abs(df.index - ts_first)
-    tgt_idx = df['Absolute Time Diff'].argmin()
-    if timestamp2 == False:
-        # Return the one point entry if that's all we wanted
-        our_vals = df.loc[tgt_idx]
-        our_vals = our_vals.drop('Absolute Time Diff')
-    else:
-    # For a range, find the point closest to our 2nd timestamp
+        delta_t = ts_second-ts_first
+        if delta_t.days > 1:
+            # do something else
+            # TODO complete this...
+            latest_file, file_idents = list_rfiles_by_date(reactorno)
+            for each in file_idents:
+                print each
+                if each[2] > ts_first.date() and each[2] < ts_second.date():
+                    print each
+                    df = read_from_reactordrive(reactorno, ts_first)
+        else:
+            df = read_from_reactordrive(reactorno, ts_first)
+        df['Absolute Time Diff'] = abs(df.index - ts_first)
         df['Absolute Time Diff2'] = abs(df.index - ts_second)
+        tgt_idx = df['Absolute Time Diff'].argmin()
         tgt_idx2 = df['Absolute Time Diff2'].argmin()
-        # Return the range if that's what we asked for
         our_vals = df.loc[tgt_idx:tgt_idx2]
-        del our_vals['Absolute Time Diff']
-        del our_vals['Absolute Time Diff2']
+        our_vals.drop(['Absolute Time Diff', 'Absolute Time Diff2'], axis=1)
     return our_vals
 
 
