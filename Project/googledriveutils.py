@@ -224,14 +224,16 @@ def list_rfiles_by_date(reactorno, date=True):
     """
     Finds the list of reactor files and creates a key to sort by date
     :param reactorno: int, the number of reactor in question
-    :param latest: boolean, if true, give only latest file, else give all files
+    :param date: boolean, if true, give only latest file, else give all files
     :return: a file list or file and a key in format:
         [index in original file_list, days since creation,
             file title, file timestamp]
     """
     # If we asked for the latest file, get the current date
-    if date is True:
-                date = datetime.datetime.now()
+    if date:
+        ts_date = datetime.datetime.now()
+    else:
+        ts_date = pd.to_datetime(date)
     # Get a list of files in the reactor's folder.
     tgt_folder_id = find_reactorfolder(reactorno)
     all_file_list = get_file_list(tgt_folder_id)
@@ -251,9 +253,9 @@ def list_rfiles_by_date(reactorno, date=True):
                 continue  # skip this iteration
             # If we can, add it to file list along with other identifiers
             ts_delta = (datetime.datetime.combine(
-                date, datetime.datetime.min.time()) - file_ts).days
+                ts_date, datetime.datetime.min.time()) - file_ts).days
             file_list.append((afile, ts_delta, afile['title'], file_ts))
-    if date is True:  # If we asked for latest, return only latest file
+    if date:  # If we asked for latest, return only latest file
         tgt_file = min(file_list, key=lambda t: t[1])
         return tgt_file
     else:  # Else, return list of files
@@ -296,9 +298,17 @@ def find_make_reactorfile(reactorno, collect_int, file_length):
         remove_file('temp.csv')  # Remove temp file w/ first data pt
         our_file.Upload()  # Upload it
         # Tell user what happened
-        print 'Sucessfully created new file ' + filename
+        print 'Successfully created new file ' + filename
         time.sleep(collect_int)  # Wait before collecting another pt
     return our_file
+
+
+def get_rfile(r_file):
+    r_file.GetContentFile('temp.csv')
+    # if dataframe, then return dataframe
+    df = pd.read_csv('temp.csv', index_col='Date', parse_dates=True)
+    remove_file('temp.csv')
+    return df
 
 
 def read_from_reactordrive(reactorno,
@@ -315,13 +325,6 @@ def read_from_reactordrive(reactorno,
     :param date2: (optional) if seeking a range a values, 2nd date
     :return:
     """
-    #
-    def get_rfile(r_file):
-        r_file.GetContentFile('temp.csv')
-        # if dataframe, then return dataframe
-        df = pd.read_csv('temp.csv', index_col='Date', parse_dates=True)
-        remove_file('temp.csv')
-        return df
 
     # If we asked for latest, fine the latest file only.
     if date is True:
@@ -432,4 +435,29 @@ def find_r1masterfile():
                 return afile
         # TODO: error if there was no file with that name
 
+
+# Old function to concatenate files with the same name, no longer in use
+def concat_files():
+    file_list = list_rfiles_by_date(1)
+    new_list=[]
+    dummy = 0
+    for each in file_list:
+        if each[1] == 0:
+            temp_df = get_rfile(each[0])
+            if dummy == 0:
+                new_df = temp_df
+            else:
+                new_df = new_df.append(temp_df)
+            dummy = dummy + 1
+    tgt_folder_id = find_reactorfolder(1)
+    new_df.to_csv('temp.csv')
+    new_file = drive.CreateFile({'title': 'R1data 2016-07-06 (concat)',
+                                  'mimeType': 'text/csv',
+                                  "parents":
+                                      [{"kind": "drive#fileLink",
+                                        "id": tgt_folder_id}]})
+    new_file.SetContentFile('temp.csv')
+    remove_file('temp.csv')  # Remove temp file w/ first data pt
+    new_file.Upload()  # Upload it
+    return new_df
 
