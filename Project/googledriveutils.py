@@ -70,9 +70,6 @@ else:
     gauth.Authorize()
 # Save the current credentials to a file
 gauth.SaveCredentialsFile("mycreds.txt")
-
-#gauth.CommandLineAuth()
-#gauth.Authorize()
 drive = GoogleDrive(gauth)
 
 
@@ -103,7 +100,6 @@ def get_newdata(reactorno):
         result = urllib2.urlopen(url).read()
     except Exception, e:
         raise CrioConnect(str(e) + ': Problem connecting to cRIO')
-        return
     #TODO: Send me an email if you can't connect to the cRIO
     # Result is a labview "cluster" type variable, (like a struct in java)
     # But it is saved here as an XML string and converted to a parseable form
@@ -223,32 +219,8 @@ def find_reactorfolder(reactorno):
         raise NoSuchReactor('There is no reactor with that number')
 
 
-def return_reactorfilelist(reactorno):
-    """
-    Return list of correctly named files in specifed reactors directory
-    :param reactorno: int, the number of reactor in question
-    :return:
-    """
-    tgt_folder_id = find_reactorfolder(reactorno)
-    file_list = get_file_list(tgt_folder_id)  # List all files in that folder
-    reactor_file_list = []
-    filename_format = 'R' + str(reactorno) + 'data %Y-%m-%d'
-    for afile in file_list:
-        # If it's not a folder, try to parse the name and get the time stamp
-        if afile['mimeType'] != 'application/vnd.google-apps.folder':
-            file_title = afile['title']
-            try:
-                datetime.datetime.strptime(file_title,
-                                                     filename_format)
-            except Exception, e:
-                # If can't parse file, let user know their organization sucks
-                print 'Warning: ' + str(e)
-                continue  # skip this iteration
-            reactor_file_list.append(afile)  # Add this file to the list
-    return reactor_file_list
 
-
-def list_rfiles_by_date(reactorno, latest=True):
+def list_rfiles_by_date(reactorno, date=True):
     """
     Finds the list of reactor files and creates a key to sort by date
     :param reactorno: int, the number of reactor in question
@@ -257,32 +229,36 @@ def list_rfiles_by_date(reactorno, latest=True):
         [index in original file_list, days since creation,
             file title, file timestamp]
     """
-    file_list = return_reactorfilelist(reactorno)
-    # Get the current date
-    what_time_is_it = datetime.datetime.now()
+    # If we asked for the latest file, get the current date
+    if date is True:
+                date = datetime.datetime.now()
+    # Get a list of files in the reactor's folder.
+    tgt_folder_id = find_reactorfolder(reactorno)
+    all_file_list = get_file_list(tgt_folder_id)
+    file_list = []
     filename_format = 'R' + str(reactorno) + 'data %Y-%m-%d'
-    sortable_file_list = []
-    idx = 0
-    for afile in file_list:
-    # Get each files timestamp
-        file_ts = datetime.datetime.strptime(afile['title'],
-                                             filename_format)
-        # Take difference of current and file time stamp
-        ts_delta = (what_time_is_it - file_ts).days
-        # These are the key params we'll need to sort and select the file
-        file_summary = (idx, ts_delta, afile['title'], file_ts)
-        sortable_file_list.append(file_summary)
-        idx = +1
-    if sortable_file_list: #If there are files to sort than return something
-        if latest: #return only latest file
-            file_list = return_reactorfilelist(reactorno)
-            tgt_file = min(sortable_file_list, key=lambda t: t[1])
-            tgt_file_idx = tgt_file[0]
-            return file_list[tgt_file_idx], tgt_file
-        else: #Return list of files
-            return file_list, sortable_file_list
-    else:
-        raise BadFileNames
+    # Only look at files that are named w/ correct format.
+    for afile in all_file_list:
+        # If it's not a folder, try to parse filename and get the time stamp
+        if afile['mimeType'] != 'application/vnd.google-apps.folder':
+            file_title = afile['title']
+            try:
+                file_ts = datetime.datetime.strptime(file_title,
+                                                     filename_format)
+            except Exception, e:
+                # If can't parse file, let user know their organization sucks
+                print 'Warning: ' + str(e)
+                continue  # skip this iteration
+            # If we can, add it to file list along with other identifiers
+            ts_delta = (datetime.datetime.combine(
+                date, datetime.datetime.min.time()) - file_ts).days
+            file_list.append((afile, ts_delta, afile['title'], file_ts))
+    if date is True:  # If we asked for latest, return only latest file
+        tgt_file = min(file_list, key=lambda t: t[1])
+        return tgt_file
+    else:  # Else, return list of files
+        file_list = sorted(file_list, key=lambda x: x[1])
+        return file_list
 
 
 def find_make_reactorfile(reactorno, collect_int, file_length):
@@ -295,12 +271,13 @@ def find_make_reactorfile(reactorno, collect_int, file_length):
     :return: our_file, this is the file
     """
     # Get latest file
-    latest_file, file_deets = list_rfiles_by_date(reactorno)
+    file_deets = list_rfiles_by_date(reactorno)
     # Find days since that files creation
     days_since_creation = file_deets[1]
     if days_since_creation < file_length:
-        our_file = latest_file  # Return our file of interest
-    else:  # If file we asked for doesn't exist, make a new one!
+        # If file is newer than our specified file length, return it.
+        our_file = file_deets[0]
+    else:  # Otherwise, make a new one!
         # Get the current date
         what_time_is_it = datetime.datetime.now()
         # File name format is "R#Data YYYY-MM-DD"
@@ -324,61 +301,71 @@ def find_make_reactorfile(reactorno, collect_int, file_length):
     return our_file
 
 
-def read_from_reactordrive(reactorno, latest, csv=False, filename='temp.csv'):
+def read_from_reactordrive(reactorno,
+                           date,
+                           csv=False,
+                           filename='temp.csv',
+                           date2=None):
     """
     Reads the google drive files for reactor data and saves as a csv or df
     :param reactorno: int, the number of reactor in question
-    :param latest: boolean, latest file only if true, else or all files
+    :param date: date to return values for
     :param csv: boolean, downloads csv if true, df if false. default is df
     :param filename: str, if csv, name of the file to save as, default is temp
+    :param date2: (optional) if seeking a range a values, 2nd date
     :return:
     """
-
-    if latest:
-        # If we asked for latest, return only the latest file
-        our_file, our_file_id = list_rfiles_by_date(reactorno)
-        if csv:
-            # If we asked for csv save as csv
-            our_file.GetContentFile(filename)
-            return
-        else:
-            # If we asked for dataframe, convert and return dataframe
-            our_file.GetContentFile('temp.csv')
-            return_df = pd.read_csv('temp.csv')
-            remove_file('temp.csv')
-            return_df = return_df.set_index('Date')
-            return_df.index = pd.DatetimeIndex(return_df.index)
-            return return_df
-    else:
-        # If we asked for all, concatenate
-        file_list, sortable_file_list = list_rfiles_by_date(reactorno,
-                                                            latest=False)
-        # Start filling up a dataframe
-        file_list[0].GetContentFile('temp.csv')
-        masterdf = pd.read_csv('temp.csv')
+    #
+    def get_rfile(r_file):
+        r_file.GetContentFile('temp.csv')
+        # if dataframe, then return dataframe
+        df = pd.read_csv('temp.csv', index_col='Date', parse_dates=True)
         remove_file('temp.csv')
-        masterdf = masterdf.set_index('Date')
-        # Remove temporary file & first entry in list
-        remove_file('temp.csv')  # Remove temp file
-        del file_list[0]
-        # Fill up dataframe with the other files by appending
-        idx = 0
-        for afile in file_list:
-            # Download and convert to dataframe
-            file_list[idx].GetContentFile('temp.csv')
-            idx += 1
-            to_append_df = pd.read_csv('temp.csv')
-            to_append_df = to_append_df.set_index('Date')
-            remove_file('temp.csv')  # Remove temp file
-            masterdf = masterdf.append(to_append_df)
-        # Sort from oldest to newest
-        masterdf.index = pd.DatetimeIndex(masterdf.index)
-        masterdf = masterdf.sort_index(ascending=True)
-        if csv:
-            masterdf.to_csv(filename)
-            return
+        return df
+
+    # If we asked for latest, fine the latest file only.
+    if date is True:
+        our_file = list_rfiles_by_date(reactorno)
+        return_df = get_rfile(our_file[0])
+    else:
+        # If date was passed as a string, parse that.
+        if isinstance(date, str):
+        # TODO: Error if this is not good.
+            date = pd.to_datetime(date)
+        # If we gave only one date, find file that includes that date
+        file_list = list_rfiles_by_date(reactorno, date)
+        if date2 is None:
+            our_file = min([afile for afile in file_list if afile[1] > 0],
+                           key=lambda x: x[1])
+            return_df = get_rfile(our_file[0])
+        # Otherwise, return all files between the two given dates
         else:
-            return masterdf
+            # If date was passed as a string, parse that.
+            if isinstance(date2, str):
+                # TODO: Error if this is not good.
+                date2 = pd.to_datetime(date)
+            file_list2 = list_rfiles_by_date(reactorno, date2)
+            idx1 = file_list.index(
+                min(afile for afile in file_list if file[1]>0))
+            idx2 = file_list2.index(
+                min(afile for afile in file_list2 if file[1]>0))
+            if idx1 is idx2:
+                our_file = min(afile for afile in file_list if file[1]>0)
+                return_df = get_rfile(our_file[0])
+            else:
+                if idx1 < idx2:
+                    our_file = file_list[idx1:idx2+1]
+                else:
+                    our_file = file_list[idx2:idx1+1]
+                for each in our_file:
+                    df = get_rfile(each[0])
+                    try:
+                        return_df = return_df.append(df)
+                    except NameError:
+                        return_df = df
+    if csv:
+        return_df.to_csv(filename)
+    return return_df
 
 
 def write_to_reactordrive(reactorno, collect_int, file_length):
@@ -429,5 +416,20 @@ def write_to_reactordrive(reactorno, collect_int, file_length):
               str(ts_str) + ':'
         print str(e)
     return
+
+
+def find_r1masterfile():
+    # Navigate through the directories
+    wlab_fid = find_folderid('Winkler Lab', 'root')
+    kp_fid = find_folderid('KathrynsProjects', wlab_fid)
+    amxrct_fid = find_folderid('Anammox Reactor', kp_fid)
+    trials_fid = find_folderid('Reactor Trials', amxrct_fid)
+    # List files in directory
+    file_list = get_file_list(trials_fid)
+    for afile in file_list:
+        if afile['title'] == 'AMX RCT.xlsx':
+            # Return the file we asked for
+                return afile
+        # TODO: error if there was no file with that name
 
 
