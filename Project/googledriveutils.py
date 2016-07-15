@@ -18,6 +18,7 @@ from xml.etree import ElementTree
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import pandas as pd
+import numpy as np
 import time
 
 """
@@ -93,13 +94,13 @@ def get_newdata(reactorno):
     :return: dataframe, this is a dataframe of requested values
     """
     # Builds the cRIO web server URL where we will make the GET request
-    url = 'http://128.208.236.156:8080/cRIOtoWeb/DataTransfer?reactorno=' + \
+    url = 'http://128.208.236.156:8001/cRIOtoWeb/DataTransfer?reactorno=' + \
           str(reactorno)
     # Makes the GET request
     try:
         result = urllib2.urlopen(url).read()
     except Exception, e:
-        raise CrioConnect(str(e) + ': Problem connecting to cRIO')
+        raise CrioConnect(str(e) + ': Problem connecting to cRIO at: ' + url)
     #TODO: Send me an email if you can't connect to the cRIO
     # Result is a labview "cluster" type variable, (like a struct in java)
     # But it is saved here as an XML string and converted to a parseable form
@@ -232,6 +233,9 @@ def list_rfiles_by_date(reactorno, date=True):
     # If we asked for the latest file, get the current date
     if date:
         ts_date = datetime.datetime.now()
+    elif not date:
+        ts_date = datetime.datetime(year=1900, month=1, day=1, hour=0,
+                                    minute=0, second=0, microsecond=0)
     else:
         ts_date = pd.to_datetime(date)
     # Get a list of files in the reactor's folder.
@@ -403,7 +407,11 @@ def write_to_reactordrive(reactorno, collect_int, file_length):
         file_to_write.SetContentFile('temp.csv')
         # Delete that local file
         remove_file('temp.csv')
+        # If latest data point had a new column, add to all past files
+        if not set(old_data.columns) - set(to_write.columns):
+            add_new_columns(reactorno)
     except Exception, e:
+        #TODO: Break into more specific errors
         ts_str = '{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
         print 'Due to error with file writing,' + \
               'skipped collection at ' + \
@@ -436,28 +444,32 @@ def find_r1masterfile():
         # TODO: error if there was no file with that name
 
 
-# Old function to concatenate files with the same name, no longer in use
-def concat_files():
-    file_list = list_rfiles_by_date(1)
-    new_list=[]
-    dummy = 0
-    for each in file_list:
-        if each[1] == 0:
-            temp_df = get_rfile(each[0])
-            if dummy == 0:
-                new_df = temp_df
-            else:
-                new_df = new_df.append(temp_df)
-            dummy = dummy + 1
-    tgt_folder_id = find_reactorfolder(1)
-    new_df.to_csv('temp.csv')
-    new_file = drive.CreateFile({'title': 'R1data 2016-07-06 (concat)',
-                                  'mimeType': 'text/csv',
-                                  "parents":
-                                      [{"kind": "drive#fileLink",
-                                        "id": tgt_folder_id}]})
-    new_file.SetContentFile('temp.csv')
-    remove_file('temp.csv')  # Remove temp file w/ first data pt
-    new_file.Upload()  # Upload it
-    return new_df
+# Old functions that might be handy later
 
+# To add new columns to old files, no longer in use
+# TODO: If there are new columns, add them to old files w/ this function
+def add_new_columns(reactorno):
+    # Return latest file & a list of all files
+    latest_file = list_rfiles_by_date(reactorno)
+    file_list = list_rfiles_by_date(reactorno, False)
+    # Convert latest file to dataframe and get column names
+    df = get_rfile(latest_file[0])
+    allcols = df.columns
+    # Go through the file_list in reverse order (to keep them chronological)
+    for each in reversed(file_list):
+        # Find missing columns and add them
+        df = get_rfile(each[0])
+        cols = df.columns
+        missing_cols = set(allcols) - set(cols)
+        if missing_cols:
+            for each2 in missing_cols:
+                print df
+                df[each2] = np.nan
+                tgt_folder_id = find_reactorfolder(reactorno)
+                print 'Adding new column(s) to ' + each[2]
+            df.to_csv('temp.csv')
+            each[0].SetContentFile('temp.csv')
+            remove_file('temp.csv')  # Remove temp file w/ first data pt
+            each[0].Upload()  # Upload it
+
+    return
