@@ -21,6 +21,7 @@ import pandas as pd
 import numpy as np
 import time
 
+
 """
 Define Custom Errors
 """
@@ -46,13 +47,24 @@ class NoFolders(BaseError):
 class NoSuchReactor(BaseError):
     """Error for specifying a reactor number to find the directory for"""
 
+
 class BadFileNames(BaseError):
     """No correctly formatted files here"""
 
+
 class CrioConnect(BaseError):
     """Problem connecting to cRIO"""
+
+
 class CrioFormat(BaseError):
     """Problem formatting data from cRIO to saveable form"""
+
+
+"""
+Define Constants
+"""
+WLAB = 'Winkler Lab'
+RDATA = 'ReactorData'
 
 """
 Authenticate the connection to google drive
@@ -100,7 +112,7 @@ def get_newdata(reactorno):
     try:
         result = urllib2.urlopen(url).read()
     except Exception, e:
-        raise CrioConnect(str(e) + ': Problem connecting to cRIO at: ' + url)
+        raise CrioConnect(str(e) + '\n Problem connecting to cRIO at: ' + url)
     #TODO: Send me an email if you can't connect to the cRIO
     # Result is a labview "cluster" type variable, (like a struct in java)
     # But it is saved here as an XML string and converted to a parseable form
@@ -211,14 +223,18 @@ def find_reactorfolder(reactorno):
     # folder will be 'R1', 'R2', etc. So make that string.
     r_folder_name = 'R' + str(reactorno)
     # Navigate through the directories
-    wlab_fid = find_folderid('Winkler Lab', 'root')
-    rdata_fid = find_folderid('ReactorData', wlab_fid)
-    try:  # When we find reactordata directory, look for our reactor's folder
-        r_fid = find_folderid(r_folder_name, rdata_fid)
-        return r_fid
-    except:  # If we can't find it, say so.
-        raise NoSuchReactor('There is no reactor with that number')
-
+    wlab_fid = find_folderid(WLAB, 'root')
+    rdata_fid = find_folderid(RDATA, wlab_fid)
+    r_fid = find_folderid(r_folder_name, rdata_fid)
+    # If we can't find a folder, say so.
+    if r_fid is None:
+        raise NoSuchReactor('There is no folder for reactor #' + reactorno)
+    elif wlab_fid is None:
+        raise InvalidDir('Cannot find ' + WLAB + ' Directory')
+    elif rdata_fid is None:
+        raise InvalidDir('Cannot find ' + RDATA + ' Directory')
+    # Return the reactor number's folder ID
+    return r_fid
 
 
 def list_rfiles_by_date(reactorno, date=True):
@@ -241,30 +257,33 @@ def list_rfiles_by_date(reactorno, date=True):
     # Get a list of files in the reactor's folder.
     tgt_folder_id = find_reactorfolder(reactorno)
     all_file_list = get_file_list(tgt_folder_id)
-    file_list = []
-    filename_format = 'R' + str(reactorno) + 'data %Y-%m-%d'
-    # Only look at files that are named w/ correct format.
-    for afile in all_file_list:
-        # If it's not a folder, try to parse filename and get the time stamp
-        if afile['mimeType'] != 'application/vnd.google-apps.folder':
-            file_title = afile['title']
-            try:
-                file_ts = datetime.datetime.strptime(file_title,
-                                                     filename_format)
-            except Exception, e:
-                # If can't parse file, let user know their organization sucks
-                print 'Warning: ' + str(e)
-                continue  # skip this iteration
-            # If we can, add it to file list along with other identifiers
-            ts_delta = (datetime.datetime.combine(
-                ts_date, datetime.datetime.min.time()) - file_ts).days
-            file_list.append((afile, ts_delta, afile['title'], file_ts))
-    if date:  # If we asked for latest, return only latest file
-        tgt_file = min(file_list, key=lambda t: t[1])
-        return tgt_file
-    else:  # Else, return list of files
-        file_list = sorted(file_list, key=lambda x: x[1])
-        return file_list
+    # If there are files, only look at files named w/ correct format.
+    if all_file_list:
+        file_list = []
+        filename_format = 'R' + str(reactorno) + 'data %Y-%m-%d'
+        for afile in all_file_list:
+            # If it's not a folder, try to parse filename and get time stamp
+            if afile['mimeType'] != 'application/vnd.google-apps.folder':
+                file_title = afile['title']
+                try:
+                    file_ts = datetime.datetime.strptime(file_title,
+                                                         filename_format)
+                except Exception, e:
+                    # If can't parse file, let user know the organization sucks
+                    print 'Warning: ' + str(e)
+                    continue  # skip this iteration
+                # If we can, add it to file list along with other identifiers
+                ts_delta = (datetime.datetime.combine(
+                    ts_date, datetime.datetime.min.time()) - file_ts).days
+                file_list.append((afile, ts_delta, afile['title'], file_ts))
+        if date:  # If we asked for latest, return only latest file
+            tgt_file = min(file_list, key=lambda t: t[1])
+            return tgt_file
+        else:  # Else, return list of files
+            file_list = sorted(file_list, key=lambda x: x[1])
+            return file_list
+    else:
+        return None
 
 
 def find_make_reactorfile(reactorno, collect_int, file_length):
@@ -278,8 +297,10 @@ def find_make_reactorfile(reactorno, collect_int, file_length):
     """
     # Get latest file
     file_deets = list_rfiles_by_date(reactorno)
-    # Find days since that files creation
-    days_since_creation = file_deets[1]
+    if file_deets is None:  # If there were no files in folder, make one!
+        days_since_creation = file_length+1
+    else:  # Else, find days since latest files creation
+        days_since_creation = file_deets[1]
     if days_since_creation < file_length:
         # If file is newer than our specified file length, return it.
         our_file = file_deets[0]
@@ -384,15 +405,15 @@ def write_to_reactordrive(reactorno, collect_int, file_length):
     """
     # Get latest data point from the reactor.
         # Find our file we asked for
+    to_write = get_newdata(reactorno)
     try:
-        to_write = get_newdata(reactorno)
         file_to_write = find_make_reactorfile(reactorno, collect_int,
                                               file_length)
     except Exception, e:
         ts_str = '{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
-        print 'Due to error with g drive file retrieval,' + \
+        print 'Due to error with g drive file retrieval, ' + \
               'skipped collection at ' + \
-              str(ts_str) + ':'
+              str(ts_str) + '\n'
         print str(e)
         return
         # Take all data in drive and convert to dataframe
