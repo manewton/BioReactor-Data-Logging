@@ -1,9 +1,9 @@
 """
 Written By: Kathryn Cogert
-For: Winkler Lab/CSE599 Winter Quarter 2016
-Purpose: Read reactor data to google drive every 30 secs.
+For: Winkler Lab cRIO bioreactors
+Purpose: Read reactor data to google drive every 30 secs for R2.
 """
-
+#TODO: Implement faster quit like R1 master file updater
 import threading
 import imp
 import os
