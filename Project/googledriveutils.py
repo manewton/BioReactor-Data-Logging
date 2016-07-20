@@ -65,6 +65,8 @@ Define Constants
 """
 WLAB = 'Winkler Lab'
 RDATA = 'ReactorData'
+OLD = datetime.datetime(year=1900, month=1, day=1, hour=0,
+                                    minute=0, second=0, microsecond=0)
 
 """
 Authenticate the connection to google drive
@@ -106,7 +108,7 @@ def get_newdata(reactorno):
     :return: dataframe, this is a dataframe of requested values
     """
     # Builds the cRIO web server URL where we will make the GET request
-    url = 'http://128.208.236.156:8001/cRIOtoWeb/DataTransfer?reactorno=' + \
+    url = 'http://128.208.236.156:8080/cRIOtoWeb/DataTransfer?reactorno=' + \
           str(reactorno)
     # Makes the GET request
     try:
@@ -250,8 +252,7 @@ def list_rfiles_by_date(reactorno, date=True):
     if date:
         ts_date = datetime.datetime.now()
     elif not date:
-        ts_date = datetime.datetime(year=1900, month=1, day=1, hour=0,
-                                    minute=0, second=0, microsecond=0)
+        ts_date = OLD
     else:
         ts_date = pd.to_datetime(date)
     # Get a list of files in the reactor's folder.
@@ -330,8 +331,26 @@ def find_make_reactorfile(reactorno, collect_int, file_length):
 
 def get_rfile(r_file):
     r_file.GetContentFile('temp.csv')
+
+    # parse the dates
+    def dateparser(datestring):
+        try:
+            date = pd.datetime.strptime(datestring, '%Y-%m-%d %H:%M:%S')
+        except:
+            try:
+                date = pd.datetime.strptime(datestring, '%Y-%m-%d %H:%M')
+            except:
+                try:
+                    date = pd.datetime.strptime(datestring, '%m/%d/%y %H:%M')
+                except:
+                    date = OLD
+        return date
+
     # if dataframe, then return dataframe
-    df = pd.read_csv('temp.csv', index_col='Date', parse_dates=True)
+    df = pd.read_csv('temp.csv',
+                     index_col='Date',
+                     parse_dates=True,
+                     date_parser=dateparser)
     remove_file('temp.csv')
     return df
 
@@ -363,9 +382,7 @@ def read_from_reactordrive(reactorno,
         # If we gave only one date, find file that includes that date
         file_list = list_rfiles_by_date(reactorno, date)
         if date2 is None:
-            our_file = min([afile for afile in file_list if afile[1] > 0],
-                           key=lambda x: x[1])
-            return_df = get_rfile(our_file[0])
+            return_df = get_rfile(file_list[0])
         # Otherwise, return all files between the two given dates
         else:
             # If date was passed as a string, parse that.
@@ -374,9 +391,9 @@ def read_from_reactordrive(reactorno,
                 date2 = pd.to_datetime(date)
             file_list2 = list_rfiles_by_date(reactorno, date2)
             idx1 = file_list.index(
-                min(afile for afile in file_list if file[1]>0))
+                min(afile for afile in file_list if file[1] > 0))
             idx2 = file_list2.index(
-                min(afile for afile in file_list2 if file[1]>0))
+                min(afile for afile in file_list2 if file[1] > 0))
             if idx1 is idx2:
                 our_file = min(afile for afile in file_list if file[1]>0)
                 return_df = get_rfile(our_file[0])
