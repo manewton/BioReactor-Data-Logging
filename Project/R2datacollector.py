@@ -28,3 +28,4 @@ def main():
 
 
 main()
+#TODO: Implement faster quit
