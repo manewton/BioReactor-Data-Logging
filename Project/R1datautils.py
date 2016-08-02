@@ -5,22 +5,14 @@ Purpose: Update reactor 1 master data file with data collected from probes.
 """
 
 # Import Libraries
-import datetime
-import imp
-import os
+import os, time, datetime
 import pandas as pd
 import numpy as np
 from openpyxl import load_workbook
 from itertools import islice
+from downloader import get_val_from, get_values_from, NotAvailable
+from googledriveutils import find_r1masterfile
 
-# Relative imports for bokeh interaction
-
-dl = imp.load_source('downloader', os.getcwd() +
-                      '/Project/downloader.py')
-gdu = imp.load_source('googledriveutils', os.getcwd() +
-                      '/Project/googledriveutils.py')
-
-find_r1masterfile = gdu.find_r1masterfile
 
 
 def remove_file(filename):
@@ -79,92 +71,111 @@ def save_to_workbook(newval,
     return
 
 
+def dload_r1masterfile(filename):
+            master_file = find_r1masterfile()
+            try:
+                master_file.GetContentFile(filename)
+            except Exception, e:
+                print "Warning: Something wrong with file R1 Master File."
+                print str(e)
+                # TODO: add an email alarm to responsible user
+
+
 def save_r1masterfile(csv,
                       rows_to_skip=12,
-                      filename='temp.xlsx',
-                      sheet_name='Reactor Data'):
-    # Get the file we want
-    master_file = find_r1masterfile()
-    try:
-        master_file.GetContentFile(filename)
-    except Exception, e:
-        print "Warning: Something wrong with file R1 Master File."
-        print str(e)
-        # TODO: add an email alarm to responsible user
-
-    if csv:
-        return master_file
+                      filename='R1MasterFile.xlsx',
+                      sheet_name='Reactor Data',
+                      path='.'):
+    # TODO: Get this to save in a specified directory rather than locally.
+    # TODO: Unit test this.
+    if csv: # If we want to save the file, see if it has been saved recently.
+        try:
+            file_create_date = time.ctime(os.path.getctime('./' + filename))
+        except:
+            file_create_date = '1.1.1900'
+        file_create_date = pd.to_datetime(file_create_date)
+        now = datetime.datetime.now()
+        if now-file_create_date > datetime.timedelta(days=1):
+            dload = True
+        else:
+            dload = False
     else:
-        # convert to dataframe
-        wb = load_workbook(filename, data_only=False)
-        ws = wb[sheet_name]
-        data = ws.values
-        data = list(data)[rows_to_skip:]
-
-        cols = list(data[0])
-        del cols[0]
-        del data[0]
-        idx = [r[0] for r in data]
-        data = (islice(r, 1, None) for r in data)
-        df = pd.DataFrame(data, index=idx, columns=cols)
-        df.dropna(how='all', inplace=True)
-        df.replace('#N/A', np.nan, inplace=True)
-        parse_excel = lambda x: eval(str(x)[1:]) if isinstance(x, str) else x
-        parse_no3 = lambda x: eval(str(x)[1:x.find('-')]) \
-            if isinstance(x, str) else x
-        # Parse equation columns that have no references
-        for col in df.columns:
-            try:
-                df[col] = df[col].map(parse_excel)
-            except:
-                pass
-        # Parse nitrate gallery measurements
-        for col in df.columns:
-            if 'NO3- (mgN/L)\nGallery' in col:
-                df[col] = df[col].map(parse_no3)-df[col.replace('3', '2')]
-
-        # Calculate Total Influent Flowrate
-        df['Flowrate In (ml/min)\nPump Flowrates'] \
-            = df['N Media In (ml/min)\nPump Flowrates'] \
-            + df['C Media In (ml/min)\nPump Flowrates'] \
-            + df['Water In (ml/min)\nPump Flowrates']
-
-        # Calculate total volume in per cycle
-        df['Influent Volume (L)\nOther'] \
-            = (df['Plug Flow (min)\nCycle Timing']
-            + df['Feed+Aerate (min)\nCycle Timing']) \
-            * df['Flowrate In (ml/min)\nPump Flowrates']
-
-        # Calculate NO2- influent concentration
-        df['NO2- In (mgN/L)\nCalculated Influent Concentration'] \
-            = df['NaNO2 in Media (g)\nOther']/(SODIUM + NITROGEN + OXYGEN*2)\
-            * NITROGEN * 1000 / MEDIA_VOL \
-            * df['N Media In (ml/min)\nPump Flowrates'] \
-            / df['Flowrate In (ml/min)\nPump Flowrates']
-
-        # Calculate NH4+ influent concentration
-        df['NH4+ In (mgN/L)\nCalculated Influent Concentration'] \
-            = df['NH4Cl in Media (g)\nOther']\
-            / (CHLORINE + NITROGEN + HYDROGEN*4)\
-            * NITROGEN * 1000 / MEDIA_VOL \
-            * df['N Media In (ml/min)\nPump Flowrates'] \
-            / df['Flowrate In (ml/min)\nPump Flowrates']
-
-        # Calculate total N removed per cycle
-        df['Total N Rem/Cycle (mgN/L) \nCalculations'] \
-            = df.filter(regex='Calculated Influent Concentration').sum(axis=1)\
-            - df.filter(regex='Gallery - End of Aerobic').sum(axis=1)
-
-        # Calculate NH4+ probe error
-        nh4gal = df.filter(regex='NH4\+ \(mgN/L\)\nGallery')
-        nh4probe = df.filter(regex='NH4\+ \(mgN/L\)\nProbe')
-        nh4gal.columns = CYCLE_TIMING
-        nh4probe.columns = CYCLE_TIMING
-        df['NH4 Probe Error %\nCalculations'] \
-            = ((nh4probe-nh4gal)/nh4gal).mean(axis=1)
+        dload = True
+    if dload:
+        print 'Downloading master file...'
+        dload_r1masterfile(filename)
+    # convert to dataframe
+    wb = load_workbook(filename, data_only=False)
+    # delete the local file if we didn't ask for it.
+    if not csv:
         remove_file(filename)
-        return df
+    ws = wb[sheet_name]
+    data = ws.values
+    data = list(data)[rows_to_skip:]
 
+    cols = list(data[0])
+    del cols[0]
+    del data[0]
+    idx = [r[0] for r in data]
+    data = (islice(r, 1, None) for r in data)
+    df = pd.DataFrame(data, index=idx, columns=cols)
+    df.dropna(how='all', inplace=True)
+    df.replace('#N/A', np.nan, inplace=True)
+    parse_excel = lambda x: eval(str(x)[1:]) if isinstance(x, str) else x
+    parse_no3 = lambda x: eval(str(x)[1:x.find('-')]) \
+        if isinstance(x, str) else x
+    # Parse equation columns that have no references
+    for col in df.columns:
+        try:
+            df[col] = df[col].map(parse_excel)
+        except:
+            pass
+    # Parse nitrate gallery measurements
+    for col in df.columns:
+        if 'NO3- (mgN/L)\nGallery' in col:
+            df[col] = df[col].map(parse_no3)-df[col.replace('3', '2')]
+
+    # Calculate Total Influent Flowrate
+    df['Flowrate In (ml/min)\nPump Flowrates'] \
+        = df['N Media In (ml/min)\nPump Flowrates'] \
+        + df['C Media In (ml/min)\nPump Flowrates'] \
+        + df['Water In (ml/min)\nPump Flowrates']
+
+    # Calculate total volume in per cycle
+    df['Influent Volume (L)\nOther'] \
+        = (df['Plug Flow (min)\nCycle Timing']
+        + df['Feed+Aerate (min)\nCycle Timing']) \
+        * df['Flowrate In (ml/min)\nPump Flowrates']
+
+    # Calculate NO2- influent concentration
+    df['NO2- In (mgN/L)\nCalculated Influent Concentration'] \
+        = df['NaNO2 in Media (g)\nOther']/(SODIUM + NITROGEN + OXYGEN*2)\
+        * NITROGEN * 1000 / MEDIA_VOL \
+        * df['N Media In (ml/min)\nPump Flowrates'] \
+        / df['Flowrate In (ml/min)\nPump Flowrates']
+
+    # Calculate NH4+ influent concentration
+    df['NH4+ In (mgN/L)\nCalculated Influent Concentration'] \
+        = df['NH4Cl in Media (g)\nOther']\
+        / (CHLORINE + NITROGEN + HYDROGEN*4)\
+        * NITROGEN * 1000 / MEDIA_VOL \
+        * df['N Media In (ml/min)\nPump Flowrates'] \
+        / df['Flowrate In (ml/min)\nPump Flowrates']
+
+    # Calculate total N removed per cycle
+    df['Total N Rem/Cycle (mgN/L) \nCalculations'] \
+        = df.filter(regex='Calculated Influent Concentration').sum(axis=1)\
+        - df.filter(regex='Gallery - End of Aerobic').sum(axis=1)
+
+    # Calculate NH4+ probe error
+    nh4gal = df.filter(regex='NH4\+ \(mgN/L\)\nGallery')
+    nh4probe = df.filter(regex='NH4\+ \(mgN/L\)\nProbe')
+    nh4gal.columns = CYCLE_TIMING
+    nh4probe.columns = CYCLE_TIMING
+    df['NH4 Probe Error %\nCalculations'] \
+        = ((nh4probe-nh4gal)/nh4gal).mean(axis=1)
+    return df
+save_r1masterfile(True)
 
 def upload_r1masterfile(filename='temp.xlsx'):
     # Get the file we want
@@ -180,7 +191,8 @@ def upload_r1masterfile(filename='temp.xlsx'):
 
 def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
     # Get the R1 master file as a file
-    save_r1masterfile(True)
+    masterdf = save_r1masterfile(True)
+    """
     # Convert the juicy stuff to a dataframe
     masterdf = pd.read_excel(filename,
                              sheetname='Reactor Data',
@@ -192,6 +204,7 @@ def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
                              na_values=['-1.#IND', '1.#QNAN', '1.#IND',
                              '-1.#QNAN', '','N/A', '#NA', 'NA',
                              'NULL', 'NaN', '-NaN', 'nan', '-nan'])
+                             """
     # Find what we will populate with probe data
     # Find timestamps
     ts_columns = [col for col in masterdf.columns if TS in col]
@@ -209,7 +222,7 @@ def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
         probe, time = each[1].split(COL_LABEL)
         time = tsdf.loc[each[0], time+TS]
         ts = each[0]+pd.DateOffset(hour=time.hour, minute=time.minute)
-        val = dl.get_val_from(1, ts, PROBE_DICT.get(probe))
+        val = get_val_from(1, ts, PROBE_DICT.get(probe))
         probedf.set_value(each[0], each[1], val)
         # Save that value to the workbook
         save_to_workbook(val, each[0], each[1])
@@ -219,35 +232,52 @@ def populate_r1masterfile(rows_to_skip=12, filename='temp.xlsx'):
     return probedf
 
 
-def build_cycledf(date, measured=True, probes=False):
-    # Get measured values we if asked for them
-    if measured:
-        measuredf = pd.DataFrame(index=CYCLE_TIMING,
+def get_cycletiming(date):
+    # Set up the dataframe and download the data
+    cycledf = pd.DataFrame(index=CYCLE_TIMING,
                                     columns=CYCLE_COLUMNS)
-        masterdf = save_r1masterfile(False)
+    masterdf = save_r1masterfile(True)
+    # Sample Timestamps
+    ts = masterdf.filter(regex=TS).loc[date]
+    ts.index = CYCLE_TIMING
+    for idx, each in enumerate(ts):
+            cycledf['Timestamps'].iloc[idx] = pd.to_datetime(date) + \
+                                                pd.DateOffset(
+                                                    hours=each.hour,
+                                                    minutes=each.minute)
 
-        # Sample Timestamps
-        ts = masterdf.filter(regex=TS).loc[date]
-        ts.index = CYCLE_TIMING
-        for idx, each in enumerate(ts):
-                measuredf['Timestamps'].iloc[idx] = pd.to_datetime(date) + \
-                                                    pd.DateOffset(
-                                                        hours=each.hour,
-                                                        minutes=each.minute)
+    return cycledf, masterdf
 
-        # Format Values measured by the gallery
-        galvals = masterdf.filter(regex='\nGallery').loc[date]
-        measuredf['NO2-'] = galvals.filter(regex='NO2-').values
-        measuredf['NO3-'] = galvals.filter(regex='NO3-').values
-        measuredf['NH4+'] = galvals.filter(regex='NH4+').values
-    else:
-        measuredf = None
-    # If we want it, return probe data as a seperate dataframe
-    if probes:
-        criodf = dl.get_values_from(1, measuredf['Timestamps'].iloc[0],
-                                    timestamp2=measuredf['Timestamps'].iloc[-1])
-        probe_list = PROBE_DICT.values()
-        probedf = criodf[probe_list.append('Gas Pump')]
-    else:
-        probedf = None
-    return measuredf, probedf
+
+def build_cyclemeasuredf(date):
+    # Download data and find relevant timestamps
+    measuredf, masterdf = get_cycletiming(date)
+    # Format Values measured by the gallery
+    galvals = masterdf.filter(regex='\nGallery').loc[date]
+    measuredf['NO2-'] = galvals.filter(regex='NO2-').values
+    measuredf['NO3-'] = galvals.filter(regex='NO3-').values
+    measuredf['NH4+'] = galvals.filter(regex='NH4+').values
+    return measuredf
+
+
+def build_cycleprobedf(date, get_blank=False):
+    # Download data and find relevant timestamps
+    tsdf, masterdf = get_cycletiming(date)
+    probe_list = PROBE_DICT.values()  # List of probes we want info for
+    data = {each: [None]*3 for each in probe_list}
+    probedf = pd.DataFrame(data=data)
+    probedf['Date'] = tsdf['Timestamps'].tolist()
+    probedf.set_index('Date', inplace=True)
+    aerobic_start = tsdf['Timestamps'].iloc[1]
+    # If no data is available for that point, say so
+    if not get_blank:
+        try:
+            criodf = get_values_from(1, tsdf['Timestamps'].iloc[0],
+                                     timestamp2=tsdf['Timestamps'].iloc[-1])
+            aerobic_start = criodf['Gas Pump'].idxmax(0)
+            probedf = criodf[probe_list]
+            avail = True
+        except NotAvailable:
+            # If no probe data available, return a blank dataframe.
+            avail = False
+    return probedf, aerobic_start, avail

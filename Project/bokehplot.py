@@ -10,21 +10,22 @@ Requirements:
             -- Then call this file from command line
 """
 import os
-
+import imp
+import datetime
 import pandas as pd
 from bokeh.client import push_session
 from bokeh.plotting import Figure, output_server, curdoc, gridplot
+dl = imp.load_source('downloader', os.getcwd() +
+                          '/Project/downloader.py')
 
-from googledriveutils import read_from_reactordrive
 
 # Prepare output to server
 output_server("BioReactor_Data_Logging")
 
 # Retrieves latest updated data file from google drive
-R1_data_frame = read_from_reactordrive(1, False)
-
-# Accept/Setup Data-frame to be Plotted
-R1_data_frame = R1_data_frame.tail(100)
+three_hours_ago = datetime.datetime.now()-datetime.timedelta(hours=3)
+now = datetime.datetime.now()
+R1_data_frame = dl.get_values_from(1, now, three_hours_ago)
 
 x_low = R1_data_frame.index[1]
 x_high = R1_data_frame.index[-1]
@@ -33,19 +34,19 @@ n_min = 2
 # Initialize plot figures
 DO_plot = Figure(x_axis_type="datetime", plot_width=450, plot_height=400,
                  x_range=[x_low - pd.DateOffset(minutes=n_min), x_high + pd.DateOffset(minutes=n_min)],
-                 y_range=[-0.1, 0.1])
+                 y_range=[0, 8])
 NH4_plot = Figure(x_axis_type="datetime", plot_width=450, plot_height=400,
                   x_range=[x_low - pd.DateOffset(minutes=n_min), x_high + pd.DateOffset(minutes=n_min)],
-                  y_range=[0, 100])
+                  y_range=[0, 1])
 pH_plot = Figure(x_axis_type="datetime", plot_width=450, plot_height=400,
                  x_range=[x_low - pd.DateOffset(minutes=n_min), x_high + pd.DateOffset(minutes=n_min)],
-                 y_range=[0, 15])
+                 y_range=[0, 14])
 N2_MFC_plot = Figure(x_axis_type="datetime", plot_width=450, plot_height=400,
                      x_range=[x_low - pd.DateOffset(minutes=n_min), x_high + pd.DateOffset(minutes=n_min)],
-                     y_range=[0, 800])
+                     y_range=[0, 500])
 Air_MFC_plot = Figure(x_axis_type="datetime", plot_width=450, plot_height=400,
                       x_range=[x_low - pd.DateOffset(minutes=n_min), x_high + pd.DateOffset(minutes=n_min)],
-                      y_range=[-200, 200])
+                      y_range=[0, 500])
 
 
 # Make plot function for each of the desired data sets.
@@ -75,6 +76,7 @@ def make_plot(title1, plot1, title2, plot2, title3, plot3, title4, plot4, title5
 
 
 # Create a dictionary of names and titles for each important data set.
+# TODO: Update this
 data_dict = {
     'DO': {
         'name': 'DO mg/L',
@@ -85,7 +87,7 @@ data_dict = {
         'title': 'pH'
     },
     'Ammonium': {
-        'name': 'Ammonium',
+        'name': 'NH4 mg/L',
         'title': 'NH4 Conc. (mg/L)'
     },
     'N2 Mass Flow Controller': {
@@ -111,20 +113,15 @@ session = push_session(curdoc())
 
 # Update callback function to refresh data source and plots.
 def update():
-    csv_file = os.path.abspath(pardir) + '/Data_Management/R1data'
-    read_from_reactordrive(1, False)
-    data_live = csv_file
-    data_frame = pd.read_csv(data_live, parse_dates=[0])
-    data_frame = data_frame.set_index('Date')
-    data_frame = data_frame.tail(100)
+    three_hours_ago = datetime.datetime.now()-datetime.timedelta(hours=3)
+    now = datetime.datetime.now()
+    data_frame = dl.get_values_from(1, now, three_hours_ago)
     make_plot(data_dict['DO']['name'], DO_plot,
               data_dict['Ammonium']['name'], NH4_plot,
               data_dict['pH']['name'], pH_plot,
               data_dict['N2 Mass Flow Controller']['name'], N2_MFC_plot,
               data_dict['Air Mass Flow Controller']['name'], Air_MFC_plot, data_frame)
 
-
-curdoc().add_periodic_callback(update, 4000)
+curdoc().add_periodic_callback(update, 1)
 session.show()
-
 session.loop_until_closed()

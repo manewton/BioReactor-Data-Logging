@@ -1,15 +1,8 @@
-
-/Project/client_secrets.json
-/Project/credentials.json
 /Project/settings.yaml
-/credentials.json
-/client_secrets.json
 .idea/
 Project/.ipynb_checkpoints/DOEval-checkpoint.ipynb
-Project/R1datautils.pyc
-Project/__pycache__/
 Project/bokeh_example.py
 client_secrets.json
 credentials.json
 /mycreds.txt
-/Project/mycreds.txt
+/Project/R1MasterFile.xlsx

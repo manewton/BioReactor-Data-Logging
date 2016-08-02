@@ -3,15 +3,16 @@ Written By: Kathryn Cogert
 For: Winkler Lab/CSE599 Winter Quarter 2016
 Purpose: Downloads most recent copy of reactor data.
 """
-import os
+
 import pandas as pd
-import imp
-# Can't import local modules absolutely with bokeh, so doing it relatively
-gdu = imp.load_source('googledriveutils', os.getcwd() +
-                      '/Project/googledriveutils.py')
-list_rfiles_by_date = gdu.list_rfiles_by_date
-read_from_reactordrive = gdu.read_from_reactordrive
+import datetime
+from googledriveutils import list_rfiles_by_date, read_from_reactordrive
+
 # TODO: Make more efficient
+
+# Constants
+TEN_MINS = datetime.timedelta(minutes=10)
+
 
 class BaseError(Exception):
     """Base error for google drive manipulation and navigation errors."""
@@ -19,6 +20,10 @@ class BaseError(Exception):
 
 class InvalidParam(BaseError):
     """Specified parameter is invalid."""
+
+
+class NotAvailable(BaseError):
+    """No data available at that time."""
 
 
 def get_values_from(reactorno, timestamp, timestamp2=False):
@@ -37,9 +42,13 @@ def get_values_from(reactorno, timestamp, timestamp2=False):
     if timestamp2 is False:
         df = read_from_reactordrive(reactorno, timestamp.date())
         df['Absolute Time Diff'] = abs(df.index - timestamp)
-        tgt_idx = df['Absolute Time Diff'].argmin()
-        our_vals = df.loc[tgt_idx]
-        our_vals = our_vals.drop('Absolute Time Diff')
+        # If no data is available for that point, say so
+        if df['Absolute Time Diff'].min() < TEN_MINS:
+            tgt_idx = df['Absolute Time Diff'].argmin()
+            our_vals = df.loc[tgt_idx]
+            our_vals = our_vals.drop('Absolute Time Diff')
+        else:
+            raise NotAvailable('at time: ' + timestamp)
     else:
         ts_formatted2 = pd.to_datetime(timestamp2)
         if ts_formatted < ts_formatted2:
@@ -54,18 +63,23 @@ def get_values_from(reactorno, timestamp, timestamp2=False):
             # TODO complete this...
             latest_file, file_idents = list_rfiles_by_date(reactorno)
             for each in file_idents:
-                print each
                 if each[2] > ts_first.date() and each[2] < ts_second.date():
-                    print each
                     df = read_from_reactordrive(reactorno, ts_first)
         else:
             df = read_from_reactordrive(reactorno, ts_first)
-        df['Absolute Time Diff'] = abs(df.index - ts_first)
+        df['Absolute Time Diff'] = abs(df.index-ts_first)
         df['Absolute Time Diff2'] = abs(df.index - ts_second)
-        tgt_idx = df['Absolute Time Diff'].argmin()
-        tgt_idx2 = df['Absolute Time Diff2'].argmin()
-        our_vals = df.loc[tgt_idx:tgt_idx2]
-        our_vals.drop(['Absolute Time Diff', 'Absolute Time Diff2'], axis=1)
+        # If no data is available for that point, say so
+        if df['Absolute Time Diff'].min() > TEN_MINS:
+            raise NotAvailable('at time: ' + str(timestamp))
+        elif df['Absolute Time Diff2'].min() > TEN_MINS:
+            raise NotAvailable('at time: ' + str(timestamp2))
+        else:
+            tgt_idx = df['Absolute Time Diff'].argmin()
+            tgt_idx2 = df['Absolute Time Diff2'].argmin()
+            our_vals = df.loc[tgt_idx:tgt_idx2]
+            our_vals.drop(['Absolute Time Diff', 'Absolute Time Diff2'],
+                          axis=1)
     return our_vals
 
 

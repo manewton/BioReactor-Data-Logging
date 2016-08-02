@@ -63,6 +63,9 @@ class CrioFormat(BaseError):
 """
 Define Constants
 """
+IP = '128.208.236.156'
+PORT = 8081
+DEBUG_PORT = 8001
 WLAB = 'Winkler Lab'
 RDATA = 'ReactorData'
 OLD = datetime.datetime(year=1900, month=1, day=1, hour=0,
@@ -107,14 +110,23 @@ def get_newdata(reactorno):
     :param reactorno: int, this is the reactor in question
     :return: dataframe, this is a dataframe of requested values
     """
+
+
     # Builds the cRIO web server URL where we will make the GET request
-    url = 'http://128.208.236.156:8080/cRIOtoWeb/DataTransfer?reactorno=' + \
-          str(reactorno)
+    url = 'http://%s:%d/cRIOtoWeb/DataTransfer?reactorno=%d' \
+          %(IP, PORT, reactorno)
+    debug_url = 'http://%s:%d/cRIOtoWeb/DataTransfer?reactorno=%d' \
+                %(IP, DEBUG_PORT, reactorno)
     # Makes the GET request
     try:
         result = urllib2.urlopen(url).read()
-    except Exception, e:
-        raise CrioConnect(str(e) + '\n Problem connecting to cRIO at: ' + url)
+    except Exception, e1:
+        try:
+            print str(e1) + '\n Problem connecting to cRIO at: %s' %url
+            result = urllib2.urlopen(debug_url).read()
+        except Exception, e2:
+            raise CrioConnect(str(e2) + '\n Problem connecting to cRIO at: %s'
+                              %debug_url)
     #TODO: Send me an email if you can't connect to the cRIO
     # Result is a labview "cluster" type variable, (like a struct in java)
     # But it is saved here as an XML string and converted to a parseable form
@@ -249,12 +261,17 @@ def list_rfiles_by_date(reactorno, date=True):
             file title, file timestamp]
     """
     # If we asked for the latest file, get the current date
-    if date:
+    if date is True:
         ts_date = datetime.datetime.now()
-    elif not date:
-        ts_date = OLD
-    else:
+    elif isinstance(date, str):
         ts_date = pd.to_datetime(date)
+        # TODO Error if this doesn't work
+    elif isinstance(date, pd.tslib.Timestamp):
+        ts_date = date
+    elif date is None:
+        ts_date = OLD
+
+    # TODO Else return an error
     # Get a list of files in the reactor's folder.
     tgt_folder_id = find_reactorfolder(reactorno)
     all_file_list = get_file_list(tgt_folder_id)
@@ -275,10 +292,12 @@ def list_rfiles_by_date(reactorno, date=True):
                     continue  # skip this iteration
                 # If we can, add it to file list along with other identifiers
                 ts_delta = (datetime.datetime.combine(
-                    ts_date, datetime.datetime.min.time()) - file_ts).days
+                    ts_date, datetime.datetime.min.time())-file_ts).days
                 file_list.append((afile, ts_delta, afile['title'], file_ts))
-        if date:  # If we asked for latest, return only latest file
-            tgt_file = min(file_list, key=lambda t: t[1])
+         # If we asked for latest, return only requested file
+        if date is not None:
+            tgt_file = min([n for n in file_list if n[1] > 0],
+                           key=lambda n: n[1])
             return tgt_file
         else:  # Else, return list of files
             file_list = sorted(file_list, key=lambda x: x[1])
@@ -369,7 +388,7 @@ def read_from_reactordrive(reactorno,
     :param date2: (optional) if seeking a range a values, 2nd date
     :return:
     """
-
+    # TODO, date 2 is already handled in r1datautils get_values_from.  Resolve.
     # If we asked for latest, fine the latest file only.
     if date is True:
         our_file = list_rfiles_by_date(reactorno)
@@ -422,7 +441,15 @@ def write_to_reactordrive(reactorno, collect_int, file_length):
     """
     # Get latest data point from the reactor.
         # Find our file we asked for
-    to_write = get_newdata(reactorno)
+    try:
+        to_write = get_newdata(reactorno)
+    except Exception, e:
+        ts_str = '{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
+        'Due to error with g drive file retrieval, ' + \
+              'skipped collection at ' + str(ts_str) + '\n'
+        print str(e)
+        return
+
     try:
         file_to_write = find_make_reactorfile(reactorno, collect_int,
                                               file_length)
@@ -446,7 +473,7 @@ def write_to_reactordrive(reactorno, collect_int, file_length):
         # Delete that local file
         remove_file('temp.csv')
         # If latest data point had a new column, add to all past files
-        if not set(old_data.columns) - set(to_write.columns):
+        if set(old_data.columns) - set(to_write.columns):
             add_new_columns(reactorno)
     except Exception, e:
         #TODO: Break into more specific errors
