@@ -113,9 +113,9 @@ def get_newdata(reactorno):
 
 
     # Builds the cRIO web server URL where we will make the GET request
-    url = 'http://%s:%d/cRIOtoWeb/DataTransfer?reactorno=%d' \
+    url = 'http://%s:%d/Talk_To_Reactors/GetStatusR%d' \
           %(IP, PORT, reactorno)
-    debug_url = 'http://%s:%d/cRIOtoWeb/DataTransfer?reactorno=%d' \
+    debug_url = 'http://%s:%d/Talk_To_Reactors/GetStatusR%d' \
                 %(IP, DEBUG_PORT, reactorno)
     # Makes the GET request
     try:
