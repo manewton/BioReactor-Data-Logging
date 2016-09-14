@@ -296,7 +296,7 @@ def list_rfiles_by_date(reactorno, date=True):
                 file_list.append((afile, ts_delta, afile['title'], file_ts))
          # If we asked for latest, return only requested file
         if date is not None:
-            tgt_file = min([n for n in file_list if n[1] > 0],
+            tgt_file = min([n for n in file_list if n[1] >= 0],
                            key=lambda n: n[1])
             return tgt_file
         else:  # Else, return list of files
