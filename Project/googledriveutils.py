@@ -64,7 +64,7 @@ class CrioFormat(BaseError):
 Define Constants
 """
 IP = '128.208.236.156'
-PORT = 8081
+PORT = 8080
 DEBUG_PORT = 8001
 WLAB = 'Winkler Lab'
 RDATA = 'ReactorData'
@@ -113,9 +113,9 @@ def get_newdata(reactorno):
 
 
     # Builds the cRIO web server URL where we will make the GET request
-    url = 'http://%s:%d/Talk_To_Reactors/GetStatusR%d' \
+    url = 'http://%s:%d/Talk_To_Reactors/GetR%d' \
           %(IP, PORT, reactorno)
-    debug_url = 'http://%s:%d/Talk_To_Reactors/GetStatusR%d' \
+    debug_url = 'http://%s:%d/Talk_To_Reactors/GetR%d' \
                 %(IP, DEBUG_PORT, reactorno)
     # Makes the GET request
     try:
