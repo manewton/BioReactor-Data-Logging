@@ -7,7 +7,8 @@ Purpose: Read reactor data to google drive every 30 secs for R2.
 import threading
 import imp
 import os
-gdu = imp.load_source('googledriveutils', os.getcwd() + '/Project/googledriveutils.py')
+import googledriveutils as gdu
+#gdu = imp.load_source('googledriveutils', os.getcwd() + '/Project/googledriveutils.py')
 
 def main():
     """

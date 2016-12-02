@@ -3,11 +3,12 @@ Written By: Kathryn Cogert
 For: Winkler Lab cRIO bioreactors
 Purpose: Read reactor data to google drive every 30 secs for R2.
 """
-
+#TODO: Implement faster quit like R1 master file updater
 import threading
 import imp
 import os
-gdu = imp.load_source('googledriveutils', os.getcwd() + '/Project/googledriveutils.py')
+import googledriveutils as gdu
+#gdu = imp.load_source('googledriveutils', os.getcwd() + '/Project/googledriveutils.py')
 
 def main():
     """
@@ -28,4 +29,3 @@ def main():
 
 
 main()
-#TODO: Implement faster quit
